@@ -111,6 +111,7 @@ function useInlineTextEditing(props: WebsiteComponentRenderProps) {
   const sourceText = String(props.node.props.text || '');
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(sourceText);
+  const finishingRef = React.useRef<'commit' | 'cancel'>();
 
   React.useEffect(() => {
     if (!editing) setDraft(sourceText);
@@ -122,18 +123,22 @@ function useInlineTextEditing(props: WebsiteComponentRenderProps) {
     if (!canEdit) return;
     event.preventDefault();
     event.stopPropagation();
+    finishingRef.current = undefined;
     props.onSelect?.(props.node.id);
     setDraft(sourceText);
     setEditing(true);
   };
 
   const commit = () => {
-    if (!editing) return;
+    if (!editing || finishingRef.current) return;
+    finishingRef.current = 'commit';
     setEditing(false);
     if (draft !== sourceText) onInlineTextCommit?.(props.node.id, draft);
   };
 
   const cancel = () => {
+    if (!editing || finishingRef.current) return;
+    finishingRef.current = 'cancel';
     setDraft(sourceText);
     setEditing(false);
   };
