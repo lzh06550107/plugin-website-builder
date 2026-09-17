@@ -2,8 +2,10 @@ import React from 'react';
 import type { WebsiteComponentDefinition, WebsiteComponentRenderProps } from './types';
 
 function frameProps(props: WebsiteComponentRenderProps) {
+  const editing = Boolean(props.onSelect);
   return {
     style: props.style,
+    draggable: editing && props.node.type !== 'wb.page',
     'data-wb-node-id': props.node.id,
     'data-wb-node-type': props.node.type,
     onClick: (event: React.MouseEvent) => {
