@@ -14,6 +14,8 @@ export interface CanvasProps {
   dragSource?: DragSource;
   onSelect: (nodeId: string) => void;
   onDeleteNode?: (nodeId: string) => void;
+  onDuplicateNode?: (nodeId: string) => void;
+  onMoveNodeRelative?: (nodeId: string, direction: 'up' | 'down') => void;
   onDragStart?: (source: DragSource) => void;
   onDragEnd?: () => void;
   onDropTargetChange?: (target?: DropTarget) => void;
@@ -73,6 +75,10 @@ export function Canvas(props: CanvasProps) {
   const selectionPath = React.useMemo(
     () => getNodePath(document, selectedNodeId || document.id),
     [document, selectedNodeId],
+  );
+  const contextLocation = React.useMemo(
+    () => (contextMenu ? findNodeLocation(document, contextMenu.nodeId) : undefined),
+    [contextMenu, document],
   );
 
   React.useEffect(() => {
@@ -207,6 +213,11 @@ export function Canvas(props: CanvasProps) {
   }, [document, onSelect]);
 
   const selectedIsRoot = !selectedNodeId || selectedNodeId === document.id;
+  const contextIsRoot = !contextMenu || contextMenu.nodeId === document.id;
+  const canMoveContextUp = Boolean(contextLocation?.parent && contextLocation.index > 0);
+  const canMoveContextDown = Boolean(
+    contextLocation?.parent && contextLocation.index < contextLocation.parent.children.length - 1,
+  );
 
   return (
     <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', background: '#f5f5f5' }}>
@@ -384,7 +395,7 @@ export function Canvas(props: CanvasProps) {
             left: contextMenu.x,
             top: contextMenu.y,
             zIndex: 2000,
-            minWidth: 180,
+            minWidth: 190,
             padding: 6,
             border: '1px solid #e5e7eb',
             borderRadius: 8,
@@ -397,9 +408,49 @@ export function Canvas(props: CanvasProps) {
           </Typography.Text>
           <Button
             block
+            type="text"
+            disabled={contextIsRoot || !props.onDuplicateNode}
+            style={{ textAlign: 'left' }}
+            onClick={() => {
+              const nodeId = contextMenu.nodeId;
+              setContextMenu(undefined);
+              props.onDuplicateNode?.(nodeId);
+            }}
+          >
+            复制组件
+          </Button>
+          <Button
+            block
+            type="text"
+            disabled={!canMoveContextUp || !props.onMoveNodeRelative}
+            style={{ textAlign: 'left' }}
+            onClick={() => {
+              const nodeId = contextMenu.nodeId;
+              setContextMenu(undefined);
+              props.onMoveNodeRelative?.(nodeId, 'up');
+            }}
+          >
+            上移
+          </Button>
+          <Button
+            block
+            type="text"
+            disabled={!canMoveContextDown || !props.onMoveNodeRelative}
+            style={{ textAlign: 'left' }}
+            onClick={() => {
+              const nodeId = contextMenu.nodeId;
+              setContextMenu(undefined);
+              props.onMoveNodeRelative?.(nodeId, 'down');
+            }}
+          >
+            下移
+          </Button>
+          <div style={{ height: 1, margin: '5px 4px', background: '#f0f0f0' }} />
+          <Button
+            block
             danger
             type="text"
-            disabled={contextMenu.nodeId === document.id || !props.onDeleteNode}
+            disabled={contextIsRoot || !props.onDeleteNode}
             style={{ textAlign: 'left' }}
             onClick={() => {
               const nodeId = contextMenu.nodeId;
