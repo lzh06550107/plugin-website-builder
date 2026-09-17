@@ -33,6 +33,16 @@ export function getParentNode(root: WebsiteNode, id: string): WebsiteNode | unde
   return findNodeLocation(root, id)?.parent;
 }
 
+export function getAncestorIds(root: WebsiteNode, id: string): string[] {
+  if (root.id === id) return [];
+  for (const child of root.children) {
+    if (child.id === id) return [root.id];
+    const nested = getAncestorIds(child, id);
+    if (nested.length > 0) return [root.id, ...nested];
+  }
+  return [];
+}
+
 export function isDescendant(root: WebsiteNode, ancestorId: string, candidateId: string): boolean {
   const ancestor = findNode(root, ancestorId);
   if (!ancestor || ancestorId === candidateId) return false;
