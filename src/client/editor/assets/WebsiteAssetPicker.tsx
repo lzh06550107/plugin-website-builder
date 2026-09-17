@@ -1,9 +1,14 @@
 import React from 'react';
 import { Upload, useAPIClient } from '@nocobase/client';
 import { Alert, Button, Empty, Input, Modal, Pagination, Spin, Tabs, Typography, message } from 'antd';
-import { buildAssetApplyValue, createWebsiteAssetPickerState, reduceWebsiteAssetPickerState } from './pickerState';
 import { listWebsiteAssets, normalizeWebsiteAsset } from './assetApi';
-import type { WebsiteAsset, WebsiteAssetPickerMode } from './index';
+import {
+  buildAssetApplyValue,
+  createWebsiteAssetPickerState,
+  reduceWebsiteAssetPickerState,
+} from './pickerState';
+import type { WebsiteAssetPickerMode } from './pickerState';
+import type { WebsiteAsset } from './types';
 
 export interface WebsiteAssetPickerProps {
   open: boolean;
