@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createNode } from '../schema';
-import { resolveEditorChromeStyle } from '../../client/renderer/editorChrome';
+import { getEmptyNodeHint, resolveEditorChromeStyle } from '../../client/renderer/editorChrome';
 
 test('empty layout node receives editor-only minimum height without selected solid outline', () => {
   const container = createNode('wb.container', 'container-1');
@@ -54,4 +54,9 @@ test('page keeps a usable editor canvas height even after children are added', (
     selected: false,
   });
   assert.equal(style.minHeight, '640px');
+});
+
+test('legacy Section hint directs the editor to explicit migration instead of adding old children', () => {
+  assert.match(getEmptyNodeHint('wb.section'), /转换为新结构/);
+  assert.doesNotMatch(getEmptyNodeHint('wb.section'), /添加 Container/);
 });
