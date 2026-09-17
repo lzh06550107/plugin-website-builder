@@ -5,6 +5,7 @@ import { createNode } from '../../shared/schema';
 import { findNode } from '../../shared/tree';
 import { componentRegistry } from '../registry';
 import { WebsiteRenderer } from '../renderer';
+import { WebsiteEditorInteractionsProvider } from '../renderer/editorInteractions';
 import { Canvas } from './canvas/Canvas';
 import {
   convertLegacySection,
@@ -16,6 +17,7 @@ import {
   moveEditorNode,
   moveEditorNodeRelative,
   pasteEditorNodeStyle,
+  updateInlineText,
   updateNodeProps,
   updateNodeStyle,
 } from './commands';
@@ -114,6 +116,16 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
     if (!selectedNode) return;
     replaceDocument(updateNodeStyle(state.document, selectedNode.id, state.device, patch));
   };
+
+  const handleInlineTextCommit = React.useCallback((nodeId: string, text: string) => {
+    const result = updateInlineText(state.document, nodeId, text);
+    if (!result.updated) {
+      if (result.reason && result.reason !== '文字没有变化') message.warning(result.reason);
+      return;
+    }
+    replaceDocument(result.document);
+    dispatch({ type: 'select', nodeId });
+  }, [state.document]);
 
   const handleDeleteNode = React.useCallback((nodeId: string) => {
     const result = deleteEditorNode(state.document, nodeId);
@@ -249,24 +261,26 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
           onDragEnd={() => dispatch({ type: 'clear-drag' })}
           onMoveNode={handleMoveNode}
         />
-        <Canvas
-          document={state.document}
-          device={state.device}
-          selectedNodeId={state.selectedNodeId}
-          dragSource={state.dragging}
-          onSelect={(nodeId) => dispatch({ type: 'select', nodeId })}
-          onDeleteNode={handleDeleteNode}
-          onDuplicateNode={handleDuplicateNode}
-          onMoveNodeRelative={handleMoveNodeRelative}
-          hasStyleClipboard={Boolean(styleClipboard)}
-          onCopyNodeStyle={handleCopyNodeStyle}
-          onPasteNodeStyle={handlePasteNodeStyle}
-          onDragStart={(source) => dispatch({ type: 'set-dragging', source })}
-          onDragEnd={() => dispatch({ type: 'clear-drag' })}
-          onDropTargetChange={(target) => dispatch({ type: 'set-drop-target', target })}
-          canDrop={handleCanDrop}
-          onDrop={handleDrop}
-        />
+        <WebsiteEditorInteractionsProvider onInlineTextCommit={handleInlineTextCommit}>
+          <Canvas
+            document={state.document}
+            device={state.device}
+            selectedNodeId={state.selectedNodeId}
+            dragSource={state.dragging}
+            onSelect={(nodeId) => dispatch({ type: 'select', nodeId })}
+            onDeleteNode={handleDeleteNode}
+            onDuplicateNode={handleDuplicateNode}
+            onMoveNodeRelative={handleMoveNodeRelative}
+            hasStyleClipboard={Boolean(styleClipboard)}
+            onCopyNodeStyle={handleCopyNodeStyle}
+            onPasteNodeStyle={handlePasteNodeStyle}
+            onDragStart={(source) => dispatch({ type: 'set-dragging', source })}
+            onDragEnd={() => dispatch({ type: 'clear-drag' })}
+            onDropTargetChange={(target) => dispatch({ type: 'set-drop-target', target })}
+            canDrop={handleCanDrop}
+            onDrop={handleDrop}
+          />
+        </WebsiteEditorInteractionsProvider>
         <PropertyPanel
           node={selectedNode}
           device={state.device}
