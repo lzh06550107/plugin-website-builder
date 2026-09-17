@@ -194,6 +194,7 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
           selectedNodeId={state.selectedNodeId}
           dragSource={state.dragging}
           onSelect={(nodeId) => dispatch({ type: 'select', nodeId })}
+          onDeleteSelected={selectedNode && selectedNode.id !== state.document.id ? handleDelete : undefined}
           onDragStart={(source) => dispatch({ type: 'set-dragging', source })}
           onDragEnd={() => dispatch({ type: 'clear-drag' })}
           onDropTargetChange={(target) => dispatch({ type: 'set-drop-target', target })}
