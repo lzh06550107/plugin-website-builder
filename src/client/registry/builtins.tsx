@@ -111,7 +111,7 @@ function useInlineTextEditing(props: WebsiteComponentRenderProps) {
   const sourceText = String(props.node.props.text || '');
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(sourceText);
-  const finishingRef = React.useRef<'commit' | 'cancel'>();
+  const finishingRef = React.useRef<'commit' | 'cancel' | undefined>(undefined);
 
   React.useEffect(() => {
     if (!editing) setDraft(sourceText);
