@@ -14,7 +14,7 @@ V1 不重新引入实体蓝色选中框，而采用 Canvas、面包屑和图层�
 - Hover 非 Page 节点时显示轻量淡蓝虚线和组件名称。
 - 右键组件时先精确选中该组件，再打开组件快捷菜单。
 - 双击 Heading / Text / Button 时直接进入文字编辑状态。
-- 双击 Image 时打开“替换图片”对话框。
+- 双击 Image 时打开统一的 Website Asset Picker。
 - Hover 虚线、快捷工具条、右键菜单和直接编辑控件都属于 Editor Chrome，不进入 Website Schema，也不出现在 Preview/Published。
 
 ### 选择面包屑
@@ -122,20 +122,41 @@ wb.button
 
 文字更新统一通过 Editor Command `updateInlineText()`。编辑器通过轻量 `WebsiteEditorInteractionsProvider` 向编辑态组件提供提交回调；Preview/Published 不提供该 Context，因此不会进入可编辑状态。
 
-## 8. 双击图片替换
+## 8. 双击图片替换与 Website Asset Picker
 
-双击 `wb.image` 后打开“替换图片”对话框，当前 V1 复用已经存在的图片属性能力：
+双击 `wb.image` 后打开统一资源选择器：
 
 ```text
-图片 URL
-Alt
+媒体库 | 上传图片 | 图片 URL
 ```
 
-点击“应用”后统一通过 Editor Command `updateInlineImage()` 更新目标 Image 的 `props.src / props.alt`，并保留节点的其他 props、style、responsive、id 和层级。
+### 媒体库
 
-当前这一小步**没有新增文件上传或媒体库子系统**。也就是说，双击图片的快速替换面板目前与右侧属性面板一样使用 URL；后续如果接入 NocoBase File Manager / 媒体库，只需要把 URL 输入控件替换成统一资源选择器，不需要修改 Website Schema。
+- 数据来自 Website Builder 专用 `wbAssets` file collection；
+- 只列出 `mimetype` 以 `image/` 开头的文件；
+- 支持标题/文件名搜索、分页、最新上传优先；
+- 点击图片仅改变 Picker 临时选择，不立即修改 Website Schema；
+- V1 不提供素材删除入口。
 
-Preview/Published 不提供 `onInlineImageEditRequest`，所以双击图片不会打开编辑对话框。
+### 上传图片
+
+- 使用 NocoBase `Upload` 和 File Manager 上传能力；
+- 上传资源固定为 `wbAssets:create`；
+- 仅单图、`image/*`；
+- 上传成功后自动成为 Picker 当前选择，但仍需点击“应用”才写入 Image；
+- Website Builder 不自己实现 multipart、S3、OSS、COS 等存储协议。
+
+### 图片 URL
+
+保留手工 URL 入口，适用于外部 CDN、已有公开地址或 File Manager 不可用时的降级。
+
+点击“应用”后统一通过 Editor Command `updateInlineImage()` 更新目标 Image 的 `props.src / props.alt`，并保留节点的其他 props、style、responsive、id 和层级。取消 Picker 不修改 Schema。
+
+NocoBase 上传组件可能将同源文件 URL 转成绝对 URL；写入 Schema 前 Website Builder 会把同源 URL 规范化回 path-only，避免 CMS 域名或部署域名被固化进页面 Schema。外部 CDN URL 保持绝对地址。
+
+媒体管理 API 只在后台编辑器使用。Published Renderer 仍然只消费 `props.src / props.alt`，不会调用 `wbAssets:list`。文件内容的匿名读取由 File Manager 的 Website Builder file-access authorizer 单独授权，媒体库列表本身不公开。
+
+Preview/Published 不提供 `onInlineImageEditRequest`，所以双击图片不会打开资源选择器。
 
 ## 9. 删除
 
@@ -176,10 +197,13 @@ Page
 5. 双击 Text 后出现多行输入框；普通 Enter 可以换行，Ctrl/Cmd+Enter 提交。
 6. Text 编辑时点击其他区域，失焦后提交。
 7. 双击 Button 后出现单行输入框；修改后按 Enter，按钮文字更新但 href 不变。
-8. 双击 Image 后出现“替换图片”对话框；修改 URL / Alt 并应用后图片更新。
-9. Image 快速替换不得修改 style、responsive 或其他自定义 props。
-10. 文字编辑期间 Delete / Backspace 只能编辑输入内容，不能删除组件。
-11. 从快捷工具条拖动组件时仍受合法父子层级约束。
-12. 点击“更多”打开与右键相同的菜单。
-13. 右键菜单中的上移/下移、复制样式/粘贴样式继续正常工作。
-14. Preview 中不能双击编辑 Heading/Text/Button，也不能双击 Image 打开替换面板；同时不出现面包屑、Hover Outline、快捷工具条、Context Menu、Drop Indicator 或其他 Editor Chrome。
+8. 双击 Image 后打开 `媒体库 / 上传图片 / 图片 URL` 三入口 Picker。
+9. 媒体库能搜索、分页和选择已有图片；选择图片但点击取消时 Image 必须保持不变。
+10. 上传新图片到 `wbAssets` 后，新图片成为当前选择；点击“应用”后 Image 更新。
+11. URL Tab 继续支持外部 CDN 和相对 URL；同源上传 URL 保存到 Schema 时应保持可迁移的 path-only 形式。
+12. Image 应用后不得修改 style、responsive 或其他自定义 props，并应把 Draft 标记为 dirty。
+13. 文字编辑期间 Delete / Backspace 只能编辑输入内容，不能删除组件。
+14. 从快捷工具条拖动组件时仍受合法父子层级约束。
+15. 点击“更多”打开与右键相同的菜单；上移/下移、复制样式/粘贴样式继续正常工作。
+16. Preview 中不能双击编辑 Heading/Text/Button，也不能双击 Image 打开 Picker；同时不出现面包屑、Hover Outline、快捷工具条、Context Menu、Drop Indicator 或其他 Editor Chrome。
+17. 未登录访问 Published 页面时 `/files/.../wbAssets/...` 图片可读取，但 `wbAssets:list` 不能成为 public API。
