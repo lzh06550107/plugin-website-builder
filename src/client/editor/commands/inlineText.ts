@@ -1,7 +1,7 @@
 import type { WebsiteNode } from '../../../shared/schema';
 import { findNode, updateNode } from '../../../shared/tree';
 
-const INLINE_TEXT_TYPES = new Set(['wb.heading', 'wb.text']);
+const INLINE_TEXT_TYPES = new Set(['wb.heading', 'wb.text', 'wb.button']);
 
 export interface InlineTextEditResult {
   document: WebsiteNode;
