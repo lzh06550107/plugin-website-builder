@@ -93,9 +93,12 @@ export function removeNode(root: WebsiteNode, id: string): WebsiteNode {
 export function reorderNode(root: WebsiteNode, parentId: string, fromIndex: number, toIndex: number): WebsiteNode {
   return updateNode(root, parentId, (parent) => {
     if (fromIndex < 0 || fromIndex >= parent.children.length) return parent;
+    const maxIndex = Math.max(0, parent.children.length - 1);
+    const nextIndex = Math.max(0, Math.min(toIndex, maxIndex));
+    if (fromIndex === nextIndex) return parent;
+
     const children = [...parent.children];
     const [node] = children.splice(fromIndex, 1);
-    const nextIndex = Math.max(0, Math.min(toIndex, children.length));
     children.splice(nextIndex, 0, node);
     return { ...parent, children };
   });
