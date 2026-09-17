@@ -16,19 +16,25 @@ test('inline text edit updates Heading text and preserves other props', () => {
   assert.equal(result.document.children[0].props.level, 3);
 });
 
-test('inline text edit updates Text but rejects non-text components', () => {
+test('inline text edit updates Text', () => {
   const root = createPageRoot('root');
   const text = createNode('wb.text', 'text-1', { text: 'Old paragraph' });
+  const document = insertNode(root, 'root', text);
+
+  const result = updateInlineText(document, 'text-1', 'New paragraph');
+
+  assert.equal(result.updated, true);
+  assert.equal(result.document.children[0].props.text, 'New paragraph');
+});
+
+test('inline text edit updates Button label and preserves href', () => {
+  const root = createPageRoot('root');
   const button = createNode('wb.button', 'button-1', { text: 'Button label', href: '/demo' });
-  const withText = insertNode(root, 'root', text);
-  const document = insertNode(withText, 'root', button);
+  const document = insertNode(root, 'root', button);
 
-  const textResult = updateInlineText(document, 'text-1', 'New paragraph');
-  assert.equal(textResult.updated, true);
-  assert.equal(textResult.document.children[0].props.text, 'New paragraph');
+  const result = updateInlineText(document, 'button-1', 'Changed label');
 
-  const buttonResult = updateInlineText(document, 'button-1', 'Changed');
-  assert.equal(buttonResult.updated, false);
-  assert.equal(buttonResult.document, document);
-  assert.equal(buttonResult.document.children[1].props.text, 'Button label');
+  assert.equal(result.updated, true);
+  assert.equal(result.document.children[0].props.text, 'Changed label');
+  assert.equal(result.document.children[0].props.href, '/demo');
 });
