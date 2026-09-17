@@ -13,7 +13,7 @@ export interface CanvasProps {
   selectedNodeId?: string;
   dragSource?: DragSource;
   onSelect: (nodeId: string) => void;
-  onDeleteSelected?: () => void;
+  onDeleteNode?: (nodeId: string) => void;
   onDragStart?: (source: DragSource) => void;
   onDragEnd?: () => void;
   onDropTargetChange?: (target?: DropTarget) => void;
@@ -39,6 +39,13 @@ interface HoverOutline {
   height: number;
 }
 
+interface CanvasContextMenu {
+  nodeId: string;
+  label: string;
+  x: number;
+  y: number;
+}
+
 function closestNodeElement(target: EventTarget | null): HTMLElement | undefined {
   if (!(target instanceof Element)) return undefined;
   return target.closest<HTMLElement>('[data-wb-node-id]') || undefined;
@@ -62,6 +69,7 @@ export function Canvas(props: CanvasProps) {
   const frameRef = React.useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = React.useState<DropIndicator>();
   const [hoverOutline, setHoverOutline] = React.useState<HoverOutline>();
+  const [contextMenu, setContextMenu] = React.useState<CanvasContextMenu>();
   const selectionPath = React.useMemo(
     () => getNodePath(document, selectedNodeId || document.id),
     [document, selectedNodeId],
@@ -74,6 +82,24 @@ export function Canvas(props: CanvasProps) {
     const element = findNodeElement(frame, selectedNodeId);
     element?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [selectedNodeId, document.id]);
+
+  React.useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(undefined);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [contextMenu]);
 
   const resolveEventTarget = React.useCallback((event: React.DragEvent) => {
     const element = closestNodeElement(event.target);
@@ -130,7 +156,7 @@ export function Canvas(props: CanvasProps) {
   }, []);
 
   const updateHoverOutline = React.useCallback((event: React.MouseEvent) => {
-    if (props.dragSource) {
+    if (props.dragSource || contextMenu) {
       setHoverOutline(undefined);
       return;
     }
@@ -157,12 +183,28 @@ export function Canvas(props: CanvasProps) {
       width: rect.width,
       height: rect.height,
     });
-  }, [document, props.dragSource]);
+  }, [contextMenu, document, props.dragSource]);
 
   const clearDragChrome = React.useCallback(() => {
     setIndicator(undefined);
     props.onDropTargetChange?.(undefined);
   }, [props.onDropTargetChange]);
+
+  const openContextMenu = React.useCallback((event: React.MouseEvent) => {
+    const element = closestNodeElement(event.target);
+    const nodeId = element?.dataset.wbNodeId || document.id;
+    const node = findNode(document, nodeId) || document;
+    event.preventDefault();
+    event.stopPropagation();
+    setHoverOutline(undefined);
+    onSelect(node.id);
+    setContextMenu({
+      nodeId: node.id,
+      label: describeNode(node),
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }, [document, onSelect]);
 
   const selectedIsRoot = !selectedNodeId || selectedNodeId === document.id;
 
@@ -199,8 +241,8 @@ export function Canvas(props: CanvasProps) {
             </React.Fragment>
           ))}
         </Space>
-        {!selectedIsRoot && props.onDeleteSelected && (
-          <Button danger size="small" onClick={props.onDeleteSelected}>
+        {!selectedIsRoot && props.onDeleteNode && selectedNodeId && (
+          <Button danger size="small" onClick={() => props.onDeleteNode?.(selectedNodeId)}>
             删除当前组件
           </Button>
         )}
@@ -209,6 +251,9 @@ export function Canvas(props: CanvasProps) {
       <div
         style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24, background: '#f5f5f5' }}
         onClick={() => onSelect(document.id)}
+        onContextMenu={(event) => {
+          if (event.target === event.currentTarget) openContextMenu(event);
+        }}
       >
         <div
           ref={frameRef}
@@ -222,8 +267,10 @@ export function Canvas(props: CanvasProps) {
           }}
           onMouseMove={updateHoverOutline}
           onMouseLeave={() => setHoverOutline(undefined)}
+          onContextMenu={openContextMenu}
           onDragStart={(event) => {
             setHoverOutline(undefined);
+            setContextMenu(undefined);
             const element = closestNodeElement(event.target);
             const nodeId = element?.dataset.wbNodeId;
             if (!nodeId || nodeId === document.id) {
@@ -236,6 +283,7 @@ export function Canvas(props: CanvasProps) {
           }}
           onDragOver={(event) => {
             setHoverOutline(undefined);
+            setContextMenu(undefined);
             const source = props.dragSource || readDragSource(event.dataTransfer);
             if (!source) return;
             const resolved = resolveEventTarget(event);
@@ -325,6 +373,44 @@ export function Canvas(props: CanvasProps) {
           )}
         </div>
       </div>
+
+      {contextMenu && (
+        <div
+          data-wb-context-menu={contextMenu.nodeId}
+          onMouseDown={(event) => event.stopPropagation()}
+          onContextMenu={(event) => event.preventDefault()}
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: 2000,
+            minWidth: 180,
+            padding: 6,
+            border: '1px solid #e5e7eb',
+            borderRadius: 8,
+            background: '#fff',
+            boxShadow: '0 8px 24px rgba(0,0,0,.16)',
+          }}
+        >
+          <Typography.Text type="secondary" style={{ display: 'block', padding: '4px 8px 6px', fontSize: 12 }}>
+            {contextMenu.label}
+          </Typography.Text>
+          <Button
+            block
+            danger
+            type="text"
+            disabled={contextMenu.nodeId === document.id || !props.onDeleteNode}
+            style={{ textAlign: 'left' }}
+            onClick={() => {
+              const nodeId = contextMenu.nodeId;
+              setContextMenu(undefined);
+              props.onDeleteNode?.(nodeId);
+            }}
+          >
+            删除组件
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
