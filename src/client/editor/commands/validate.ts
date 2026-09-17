@@ -7,18 +7,28 @@ export interface CommandValidationResult {
   reason?: string;
 }
 
+/**
+ * Click insertion follows an explicit hierarchy:
+ * - layout nodes only accept direct legal children;
+ * - leaf/content nodes may create a legal sibling in their immediate parent.
+ * We intentionally do not keep walking to distant ancestors because that makes
+ * "insert here" feel unpredictable in a visual editor.
+ */
 export function findInsertionParent(
   document: WebsiteNode,
   registry: ComponentRegistry,
   selectedNodeId: string | undefined,
   childType: string,
 ) {
-  let current = selectedNodeId ? findNode(document, selectedNodeId) : undefined;
-  if (!current) current = document;
+  const selected = selectedNodeId ? findNode(document, selectedNodeId) : undefined;
+  const current = selected || document;
 
-  while (current) {
-    if (registry.canContain(current.type, childType)) return current;
-    current = getParentNode(document, current.id);
+  if (registry.canContain(current.type, childType)) return current;
+
+  const definition = registry.get(current.type);
+  if (definition && !definition.acceptsChildren) {
+    const parent = getParentNode(document, current.id);
+    if (parent && registry.canContain(parent.type, childType)) return parent;
   }
 
   return undefined;
