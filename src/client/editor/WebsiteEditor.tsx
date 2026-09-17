@@ -7,6 +7,7 @@ import { componentRegistry } from '../registry';
 import { WebsiteRenderer } from '../renderer';
 import { Canvas } from './canvas/Canvas';
 import {
+  convertLegacySection,
   findInsertionParent,
   insertComponent,
   moveEditorNode,
@@ -115,6 +116,31 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
     dispatch({ type: 'select', nodeId: parentId });
   }, [selectedNode, state.document]);
 
+  const handleConvertLegacySection = React.useCallback(() => {
+    if (!selectedNode || selectedNode.type !== 'wb.section') return;
+
+    Modal.confirm({
+      title: '转换旧 Section 为新结构？',
+      content: '转换只修改当前编辑中的 Schema。新结构会使用 Page → Container → Grid → 内容，只有点击“保存草稿”后才会写入数据库。',
+      okText: '转换',
+      cancelText: '取消',
+      onOk: () => {
+        const result = convertLegacySection(state.document, selectedNode.id);
+        if (!result.converted) {
+          message.warning(result.reason || '旧 Section 转换失败');
+          return;
+        }
+        replaceDocument(result.document);
+        dispatch({ type: 'select', nodeId: result.nodeId || selectedNode.id });
+        if (result.warnings.length > 0) {
+          message.warning(`已转换为新结构，并完成 ${result.warnings.length} 项兼容调整，请检查布局后再保存`);
+        } else {
+          message.success('已转换为 Container → Grid 新结构，请检查后保存草稿');
+        }
+      },
+    });
+  }, [selectedNode, state.document]);
+
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.key !== 'Delete' && event.key !== 'Backspace') || isEditingText(event.target)) return;
@@ -180,6 +206,7 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
           onPropsChange={handlePropsChange}
           onStyleChange={handleStyleChange}
           onDelete={handleDelete}
+          onConvertLegacySection={selectedNode?.type === 'wb.section' ? handleConvertLegacySection : undefined}
         />
       </div>
       <Modal
