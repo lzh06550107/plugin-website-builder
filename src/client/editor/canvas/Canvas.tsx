@@ -16,6 +16,9 @@ export interface CanvasProps {
   onDeleteNode?: (nodeId: string) => void;
   onDuplicateNode?: (nodeId: string) => void;
   onMoveNodeRelative?: (nodeId: string, direction: 'up' | 'down') => void;
+  hasStyleClipboard?: boolean;
+  onCopyNodeStyle?: (nodeId: string) => void;
+  onPasteNodeStyle?: (nodeId: string) => void;
   onDragStart?: (source: DragSource) => void;
   onDragEnd?: () => void;
   onDropTargetChange?: (target?: DropTarget) => void;
@@ -444,6 +447,33 @@ export function Canvas(props: CanvasProps) {
             }}
           >
             下移
+          </Button>
+          <div style={{ height: 1, margin: '5px 4px', background: '#f0f0f0' }} />
+          <Button
+            block
+            type="text"
+            disabled={!props.onCopyNodeStyle}
+            style={{ textAlign: 'left' }}
+            onClick={() => {
+              const nodeId = contextMenu.nodeId;
+              setContextMenu(undefined);
+              props.onCopyNodeStyle?.(nodeId);
+            }}
+          >
+            复制样式
+          </Button>
+          <Button
+            block
+            type="text"
+            disabled={!props.hasStyleClipboard || !props.onPasteNodeStyle}
+            style={{ textAlign: 'left' }}
+            onClick={() => {
+              const nodeId = contextMenu.nodeId;
+              setContextMenu(undefined);
+              props.onPasteNodeStyle?.(nodeId);
+            }}
+          >
+            粘贴样式
           </Button>
           <div style={{ height: 1, margin: '5px 4px', background: '#f0f0f0' }} />
           <Button
