@@ -10,6 +10,7 @@ export interface WebsiteAssetPickerState {
 }
 
 export type WebsiteAssetPickerAction =
+  | { type: 'reset'; src: string; alt: string }
   | { type: 'set-mode'; mode: WebsiteAssetPickerMode }
   | { type: 'select-asset'; mode: 'library' | 'upload'; asset: WebsiteAsset }
   | { type: 'set-url'; value: string }
@@ -28,6 +29,8 @@ export function reduceWebsiteAssetPickerState(
   action: WebsiteAssetPickerAction,
 ): WebsiteAssetPickerState {
   switch (action.type) {
+    case 'reset':
+      return createWebsiteAssetPickerState(action.src, action.alt);
     case 'set-mode':
       return { ...state, mode: action.mode };
     case 'select-asset':
