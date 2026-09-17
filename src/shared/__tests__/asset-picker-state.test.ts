@@ -12,10 +12,10 @@ async function loadPickerState() {
   return module;
 }
 
-test('library selection is local state until explicit apply value is built', async () => {
+test('current image remains applicable until a new library asset is selected', async () => {
   const { createWebsiteAssetPickerState, reduceWebsiteAssetPickerState, buildAssetApplyValue } = await loadPickerState();
   const initial = createWebsiteAssetPickerState('/old.png', 'Old alt');
-  assert.equal(buildAssetApplyValue(initial), null);
+  assert.deepEqual(buildAssetApplyValue(initial), { src: '/old.png', alt: 'Old alt' });
 
   const selected = reduceWebsiteAssetPickerState(initial, {
     type: 'select-asset',
@@ -52,11 +52,10 @@ test('URL mode trims the URL, preserves alt text, and rejects an empty URL', asy
   assert.equal(buildAssetApplyValue(state), null);
 });
 
-test('changing alt remains local until apply', async () => {
+test('changing alt in library mode can preserve the current src', async () => {
   const { createWebsiteAssetPickerState, reduceWebsiteAssetPickerState, buildAssetApplyValue } = await loadPickerState();
   const initial = createWebsiteAssetPickerState('/old.png', 'Old alt');
-  let state = reduceWebsiteAssetPickerState(initial, { type: 'set-alt', value: 'New alt' });
-  state = reduceWebsiteAssetPickerState(state, { type: 'set-mode', mode: 'url' });
+  const state = reduceWebsiteAssetPickerState(initial, { type: 'set-alt', value: 'New alt' });
 
   assert.equal(initial.alt, 'Old alt');
   assert.deepEqual(buildAssetApplyValue(state), { src: '/old.png', alt: 'New alt' });
@@ -84,7 +83,7 @@ test('reset clears stale selection when the picker opens for another image', asy
 
 test('switching picker modes clears a stale asset selection', async () => {
   const { createWebsiteAssetPickerState, reduceWebsiteAssetPickerState, buildAssetApplyValue } = await loadPickerState();
-  let state = createWebsiteAssetPickerState('', 'Alt');
+  let state = createWebsiteAssetPickerState('/current.png', 'Alt');
   state = reduceWebsiteAssetPickerState(state, {
     type: 'select-asset',
     mode: 'library',
@@ -93,5 +92,5 @@ test('switching picker modes clears a stale asset selection', async () => {
   state = reduceWebsiteAssetPickerState(state, { type: 'set-mode', mode: 'upload' });
 
   assert.equal(state.selected, undefined);
-  assert.equal(buildAssetApplyValue(state), null);
+  assert.deepEqual(buildAssetApplyValue(state), { src: '/current.png', alt: 'Alt' });
 });
