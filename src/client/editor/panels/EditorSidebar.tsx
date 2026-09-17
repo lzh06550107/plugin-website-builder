@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tabs } from 'antd';
 import type { WebsiteNode } from '../../../shared/schema';
+import type { DragSource, DropTarget } from '../dnd';
 import { ComponentPanel } from './ComponentPanel';
 import { LayerPanel } from './LayerPanel';
 
@@ -9,6 +10,9 @@ export interface EditorSidebarProps {
   selectedNodeId?: string;
   onSelect: (nodeId: string) => void;
   onInsert: (type: string) => void;
+  onDragStart?: (source: DragSource) => void;
+  onDragEnd?: () => void;
+  onMoveNode?: (nodeId: string, target: DropTarget) => void;
 }
 
 export function EditorSidebar(props: EditorSidebarProps) {
@@ -22,7 +26,13 @@ export function EditorSidebar(props: EditorSidebarProps) {
           {
             key: 'components',
             label: '组件',
-            children: <ComponentPanel onInsert={props.onInsert} />,
+            children: (
+              <ComponentPanel
+                onInsert={props.onInsert}
+                onDragStart={props.onDragStart}
+                onDragEnd={props.onDragEnd}
+              />
+            ),
           },
           {
             key: 'layers',
@@ -32,6 +42,9 @@ export function EditorSidebar(props: EditorSidebarProps) {
                 document={props.document}
                 selectedNodeId={props.selectedNodeId}
                 onSelect={props.onSelect}
+                onDragStart={props.onDragStart}
+                onDragEnd={props.onDragEnd}
+                onMoveNode={props.onMoveNode}
               />
             ),
           },
