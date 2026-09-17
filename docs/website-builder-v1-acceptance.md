@@ -1,24 +1,30 @@
 # Website Builder V1 本地部署与验收
 
-## 1. 验收目标
+## 1. 验收原则
 
-本轮验收确认第一个可运行版本是否在真实 NocoBase 2.x 环境中完成以下闭环：
+V1 现在分两个 Gate 验收，顺序不可颠倒：
 
 ```text
-NocoBase 后台
-  → Website Builder
-  → 创建站点
-  → 创建页面
-  → 零代码编辑组件/内容/样式
-  → Desktop / Mobile
-  → 保存 Draft
+Gate A：零代码编辑交互
+  → 组件层级
+  → 组件 / 图层双面板
+  → Canvas 拖拽
+  → 图层树拖拽
+  → 同级排序 / 跨容器移动
+  → Flex / Grid / 间距 / 响应式排版
+  → Preview 不含编辑器辅助 UI
+
+Gate B：持久化与发布
+  → Save Draft
+  → 重新加载
   → Preview
   → Publish
   → Published Version
-  → 前台 Renderer
+  → Draft / Published 隔离
+  → ACL
 ```
 
-同时确认：修改 Draft **不会**直接修改已经发布的页面。
+**Gate A 未通过，不进入 Gate B。**
 
 ---
 
@@ -36,13 +42,9 @@ package name：
 @lzh/plugin-website-builder
 ```
 
-NocoBase 版本约束：
+NocoBase：`2.x`。
 
-```text
-2.x
-```
-
-V1 同时保留：
+V1 源码结构：
 
 ```text
 src/client
@@ -51,441 +53,448 @@ src/server
 src/shared
 ```
 
-其中 Website Schema 位于 `src/shared`，不依赖 NocoBase UI；`client` 与 `client-v2` 共用同一套 Schema、Editor、Renderer 和 API contract。
+Website Schema 位于 `src/shared`，编辑器只修改结构化组件树，不把最终 HTML 作为源数据保存。
 
 ---
 
-## 3. 推荐的源码部署方式
+## 3. 本地更新与构建
 
-### 3.1 不建议继续使用外部目录软链接作为第一次验收方式
-
-之前出现过：
-
-```text
-[@nocobase/build]: 'plugin-website-builder' did not match any packages
-```
-
-NocoBase 当前 build 会扫描 `packages` 工作区中的 `package.json`，并按真实 package name 或工作区路径匹配。因此第一次验收建议直接把插件仓库放到 NocoBase 的插件工作区中。
-
-假设 NocoBase 源码目录：
-
-```text
-~/nocobase
-```
-
-执行：
+插件位于 NocoBase 工作区时：
 
 ```bash
-cd ~/nocobase
-
-mkdir -p packages/plugins/@lzh
-
-# 如果目录不存在
-# git clone https://github.com/lzh06550107/plugin-website-builder.git \
-#   packages/plugins/@lzh/plugin-website-builder
-
-# 如果已经 clone 过
-cd packages/plugins/@lzh/plugin-website-builder
+cd ~/nocobase/packages/plugins/@lzh/plugin-website-builder
 git checkout master
 git pull
 
 cd ~/nocobase
-```
-
-如果原来不存在，则使用：
-
-```bash
-cd ~/nocobase
-mkdir -p packages/plugins/@lzh
-git clone https://github.com/lzh06550107/plugin-website-builder.git \
-  packages/plugins/@lzh/plugin-website-builder
-```
-
-### 3.2 安装工作区依赖
-
-回到 NocoBase 根目录：
-
-```bash
-cd ~/nocobase
 yarn install
+yarn build @lzh/plugin-website-builder
 ```
 
-检查 Yarn 是否已经识别插件：
-
-```bash
-node -p "require('./packages/plugins/@lzh/plugin-website-builder/package.json').name"
-```
-
-预期：
+必须使用完整包名：
 
 ```text
 @lzh/plugin-website-builder
 ```
 
-### 3.3 单独构建插件
+不要使用：
 
-必须使用完整 package name：
+```text
+plugin-website-builder
+```
+
+如果插件尚未启用：
 
 ```bash
-cd ~/nocobase
-yarn build @lzh/plugin-website-builder
-```
-
-预期不再出现：
-
-```text
-did not match any packages
-```
-
-并且插件目录生成：
-
-```text
-packages/plugins/@lzh/plugin-website-builder/dist/
-```
-
-重点检查：
-
-```text
-dist/client/
-dist/client-v2/
-dist/server/
-```
-
-### 3.4 启用插件
-
-```bash
-cd ~/nocobase
 yarn pm enable @lzh/plugin-website-builder
 ```
 
-如果此前已经安装/启用过旧骨架版本，并且这次新增了 collection，执行：
+如果此前启用的是旧骨架并且 Collection 尚未升级：
 
 ```bash
 yarn nocobase upgrade
 ```
 
-然后启动你当前使用的开发服务：
+然后重新启动当前开发服务，例如：
 
 ```bash
 yarn dev-server
 ```
 
-如果你的 NocoBase 工作区当前使用的是统一开发命令，则也可按项目现有方式启动 `yarn dev`；本项目验收以你现有可正常启动的 NocoBase 命令为准。
+构建 Gate：
 
-新增语言文件后应重启一次服务。
-
----
-
-## 4. 数据表检查
-
-插件启用/upgrade 后，应存在至少以下 collection/table：
-
-```text
-wbSites
-wbPages
-wbPageVersions
-wbThemes
-```
-
-核心关系：
-
-```text
-wbSites
-  └─ wbPages
-       └─ wbPageVersions
-
-wbSites
-  └─ wbThemes
-```
-
-重点字段：
-
-### wbPages
-
-```text
-siteId
-name
-title
-slug
-routePath
-status
-draftSchema
-publishedVersionId
-seoTitle
-seoDescription
-```
-
-### wbPageVersions
-
-```text
-pageId
-version
-schema
-publishNote
-```
-
-要求：
-
-- `(siteId, routePath)` 唯一；
-- `(pageId, version)` 唯一；
-- `draftSchema` 与发布版本分开保存。
+- [ ] `yarn build @lzh/plugin-website-builder` exit code = 0；
+- [ ] `dist/client` 存在；
+- [ ] `dist/client-v2` 存在；
+- [ ] `dist/server` 存在；
+- [ ] NocoBase 启动无 Website Builder 初始化异常。
 
 ---
 
-## 5. 后台入口验收
+## 4. 后台入口
 
-### client-v2
-
-当前 NocoBase 2.x 新客户端使用：
-
-```text
-插件配置 → Website Builder
-```
-
-对应路径通常为：
+打开：
 
 ```text
 /v/admin/settings/website-builder
 ```
 
-### 旧 client
-
-旧 client 同样注册 `Website Builder` 设置入口，用于兼容当前仍运行旧客户端的 NocoBase 工作区。
-
 验收：
 
-- [ ] 插件成功启用；
-- [ ] 后台可以看到 Website Builder；
-- [ ] 点击后无白屏；
-- [ ] 浏览器控制台无 Website Builder 初始化异常；
-- [ ] Site 列表能够正常请求。
+- [ ] Website Builder 设置页正常打开；
+- [ ] Site 列表可读取；
+- [ ] Page 列表可读取；
+- [ ] 点击“编辑页面”可以进入编辑器；
+- [ ] 浏览器控制台没有 Website Builder 初始化错误。
 
 ---
 
-## 6. Site 验收
+## 5. Site / Page 基础数据
 
-点击：
-
-```text
-新建站点
-```
-
-测试数据：
+建议使用：
 
 ```text
 站点名称：Demo Company
 站点标识：demo-company
-```
 
-验收：
-
-- [ ] 创建成功；
-- [ ] 页面刷新后站点仍存在；
-- [ ] 重复 `demo-company` 被唯一约束阻止；
-- [ ] 可以切换站点。
-
----
-
-## 7. Page 验收
-
-在 Demo Company 下创建：
-
-```text
-内部名称：Home
+页面名称：Home
 页面标题：首页
 Slug：home
-路由：/
+Route：/
 ```
 
 验收：
 
-- [ ] 创建成功；
-- [ ] 页面状态初始为 `draft`；
-- [ ] `draftSchema` 自动包含 `wb.page` 根节点；
-- [ ] 点击“编辑页面”能打开全屏 Drawer 编辑器。
+- [ ] Site 创建成功并可刷新恢复；
+- [ ] 重复 site key 被唯一约束阻止；
+- [ ] Page 创建成功；
+- [ ] Page 初始状态为 draft；
+- [ ] `draftSchema` 包含 `wb.page` 根节点。
 
 ---
 
-## 8. 编辑器结构验收
+# Gate A：零代码编辑交互
 
-编辑器应至少包含：
+## 6. 编辑器结构
+
+编辑器应为：
 
 ```text
-顶部：设备切换 / 预览 / 保存草稿 / 发布
-左侧：组件列表
-中间：Canvas
-右侧：属性面板
+┌──────────────────────────────────────────────────────────────┐
+│ Desktop / Mobile                 预览  保存草稿  发布         │
+├──────────────┬──────────────────────────────┬────────────────┤
+│ 组件 | 图层  │            Canvas            │      属性      │
+└──────────────┴──────────────────────────────┴────────────────┘
 ```
 
 验收：
 
-- [ ] 默认选中 Page 根节点；
-- [ ] 点击 Canvas 中的节点可以选中；
-- [ ] 被选节点出现轮廓；
-- [ ] 删除非 Page 节点有效；
+- [ ] 左侧存在“组件 / 图层”两个 Tab；
+- [ ] 中间 Canvas 可选择节点；
+- [ ] 右侧属性面板随选中节点变化；
 - [ ] Page 根节点不能删除；
-- [ ] 编辑状态下点击 Button 不应直接跳离编辑器。
+- [ ] Page 根节点不能拖动；
+- [ ] 空 Section / Container / Grid 有足够的编辑命中区域。
 
 ---
 
-## 9. V1 组件验收
+## 7. 组件层级规则
 
-逐个插入：
-
-```text
-Section
-Container
-Grid
-Heading
-Text
-Image
-Button
-```
-
-加上根节点，共八种 V1 类型：
-
-```text
-wb.page
-wb.section
-wb.container
-wb.grid
-wb.heading
-wb.text
-wb.image
-wb.button
-```
-
-验收：
-
-- [ ] Section 可容纳子组件；
-- [ ] Container 可容纳子组件；
-- [ ] Grid 默认形成 3 列；
-- [ ] Grid 可修改 1～12 列；
-- [ ] Heading 可修改文字及 H1～H6；
-- [ ] Text 可修改文字；
-- [ ] Image 可配置 URL / Alt；
-- [ ] Button 可配置文字 / href。
-
-建议搭建：
+V1 固定规则：
 
 ```text
 Page
 └─ Section
-   └─ Container
-      ├─ Heading
-      ├─ Text
-      ├─ Button
-      └─ Grid
-         ├─ Image
-         ├─ Image
-         └─ Image
+   ├─ Container
+   │  ├─ Grid
+   │  ├─ Heading
+   │  ├─ Text
+   │  ├─ Image
+   │  └─ Button
+   ├─ Grid
+   ├─ Heading
+   ├─ Text
+   ├─ Image
+   └─ Button
 ```
+
+其中：
+
+```text
+Page      → 只能直接放 Section
+Section   → Container / Grid / 内容组件
+Container → Grid / 内容组件
+Grid      → Container / 内容组件
+内容组件  → 不允许 children
+```
+
+特别验证：
+
+- [ ] 选中 Page 点击 Text，不允许直接插入；
+- [ ] 选中 Page 点击 Section，可以插入；
+- [ ] 选中 Section 点击 Container，可以插入；
+- [ ] 选中 Container 点击 Section，被拒绝；
+- [ ] 选中 Heading 后点击 Text，Text 自动插到最近合法父容器中，成为 Heading 的同级；
+- [ ] Section 不允许嵌套 Section。
 
 ---
 
-## 10. 样式验收
+## 8. 建立标准验收页面
 
-当前属性面板至少验证：
+使用“点击插入 + 拖拽”共同搭建：
+
+```text
+Page
+├─ Section A
+│  └─ Container A
+│     ├─ Heading
+│     ├─ Text
+│     └─ Button
+└─ Section B
+   └─ Container B
+```
+
+推荐内容：
+
+```text
+Heading：金亚包装
+Text：专业包装印刷解决方案
+Button：了解更多
+```
+
+验收：
+
+- [ ] 左侧组件点击插入有效；
+- [ ] 左侧组件可以直接拖入 Canvas；
+- [ ] Palette 拖动过程中不会提前修改 Schema；
+- [ ] 只有合法 drop 后才创建新节点；
+- [ ] 新建节点 drop 后自动成为当前选中节点。
+
+---
+
+## 9. Canvas 拖拽排序
+
+在 `Container A` 中验证：
+
+```text
+原顺序：
+Heading
+Text
+Button
+
+拖动后：
+Text
+Heading
+Button
+```
+
+验收：
+
+- [ ] 已有节点可直接拖动；
+- [ ] 节点上方 / 下方出现 Drop Indicator；
+- [ ] 合法位置显示蓝色提示；
+- [ ] 非法位置显示红色/禁止提示；
+- [ ] 同父级向前排序正确；
+- [ ] 同父级向后排序正确；
+- [ ] 拖回原位置不会无故把文档标记成有变化；
+- [ ] 排序后节点 id 不变；
+- [ ] 子树内容完整保留。
+
+---
+
+## 10. Canvas 跨容器移动
+
+把：
+
+```text
+Container A / Button
+```
+
+拖到：
+
+```text
+Container B
+```
+
+预期：
+
+```text
+Section A
+└─ Container A
+   ├─ Text
+   └─ Heading
+
+Section B
+└─ Container B
+   └─ Button
+```
+
+验收：
+
+- [ ] 跨父级移动成功；
+- [ ] 原父节点不再包含该节点；
+- [ ] 新父节点包含原节点；
+- [ ] 节点 id、props、style、responsive、children 全部保留；
+- [ ] 移动后仍保持该节点选中。
+
+非法移动必须拒绝：
+
+- [ ] Page 被拖动；
+- [ ] 节点拖入自身；
+- [ ] 节点拖入自己的 descendant；
+- [ ] Section 拖入 Container；
+- [ ] Text/Heading/Button/Image 作为父容器接收其他节点。
+
+非法移动不能产生半完成状态或损坏组件树。
+
+---
+
+## 11. 图层树验收
+
+打开左侧“图层”：
+
+```text
+Page
+├─ Section
+│  └─ Container
+│     ├─ Text
+│     └─ Heading
+└─ Section
+   └─ Container
+      └─ Button
+```
+
+验收：
+
+- [ ] 图层树结构与 Canvas/Schema 一致；
+- [ ] 点击图层节点，Canvas 同步高亮；
+- [ ] 点击 Canvas 节点，图层树同步选中；
+- [ ] 选择深层节点时祖先层级自动展开；
+- [ ] Page 在图层树中不可拖动；
+- [ ] 图层树支持同父级排序；
+- [ ] 图层树支持跨合法父容器移动；
+- [ ] 图层树与 Canvas 的移动结果一致；
+- [ ] 非法层级移动被命令层拒绝。
+
+---
+
+## 12. 零代码排版属性
+
+右侧属性面板至少验证：
 
 ```text
 width
 maxWidth
-display
-paddingTop
-paddingBottom
-color
+minHeight
+
+display: block / flex / grid
+flexDirection
+justifyContent
+alignItems
+gap
+gridTemplateColumns
+
+padding: top / right / bottom / left
+margin: top / right / bottom / left
+
 fontSize
+color
 textAlign
-background color
-border radius
+backgroundColor
+borderRadius
+```
+
+建议对 `Container A` 设置：
+
+```text
+display = flex
+flexDirection = column
+gap = 24px
+paddingTop = 40px
+paddingRight = 32px
+paddingBottom = 40px
+paddingLeft = 32px
+```
+
+再切换为：
+
+```text
+display = flex
+flexDirection = row
+justifyContent = space-between
+alignItems = center
 ```
 
 验收：
 
-- [ ] 修改属性后 Canvas 即时变化；
-- [ ] 保存草稿后关闭编辑器再打开，属性仍存在；
-- [ ] 页面不是把最终 HTML 字符串保存到数据库，而是保存组件树 JSON。
+- [ ] 每个属性修改后 Canvas 立即变化；
+- [ ] Flex 主轴/交叉轴配置有效；
+- [ ] Gap 有效；
+- [ ] 四边 Padding 可独立设置；
+- [ ] 四边 Margin 可独立设置；
+- [ ] Grid 列数与 Grid Template 生效；
+- [ ] 用户无需输入 HTML/React 代码即可完成排版。
 
 ---
 
-## 11. Desktop / Mobile 响应式验收
+## 13. Desktop / Mobile 响应式
 
-先选择：
+Desktop：
 
 ```text
-Desktop
+Heading fontSize = 40px
+Container paddingLeft = 32px
 ```
 
-例如给 Heading：
+Mobile：
 
 ```text
-fontSize = 40px
-```
-
-再选择：
-
-```text
-Mobile
-```
-
-设置：
-
-```text
-fontSize = 24px
+Heading fontSize = 24px
+Container paddingLeft = 16px
 ```
 
 验收：
 
-- [ ] Desktop 显示 40px；
-- [ ] Mobile 显示 24px；
-- [ ] Mobile 未覆盖的属性继续继承基础/既有属性；
-- [ ] Mobile Canvas 宽度明显切换为移动端预览宽度。
+- [ ] Desktop / Mobile 可切换；
+- [ ] Mobile Canvas 使用移动端宽度；
+- [ ] 两个设备的覆盖值互不覆盖；
+- [ ] 未配置值继续继承已有样式。
 
 ---
 
-## 12. Draft 保存验收
+## 14. Preview 编辑器隔离
 
-完成若干编辑后点击：
+点击“预览”。
+
+Preview 中不得出现：
+
+```text
+空 Section 提示文字
+空 Container 提示文字
+selection outline
+Drop Indicator
+图层树
+拖拽辅助边框
+编辑器专用 draggable 元数据造成的行为变化
+```
+
+验收：
+
+- [ ] Preview 只显示网页本身；
+- [ ] 空容器编辑高度不污染 Preview；
+- [ ] Drop Indicator 不进入 Website Schema；
+- [ ] 编辑器辅助 UI 不进入 Published Renderer。
+
+**Gate A 到此全部通过后，才进入以下 Gate B。**
+
+---
+
+# Gate B：Draft / Publish / ACL
+
+## 15. Draft 保存与重新加载
+
+在标准验收页面上点击：
 
 ```text
 保存草稿
 ```
 
+关闭编辑器，再重新进入。
+
 验收：
 
-- [ ] 显示保存成功；
+- [ ] 组件层级完整恢复；
+- [ ] 排序结果完整恢复；
+- [ ] 跨容器移动结果完整恢复；
+- [ ] Desktop/Mobile 样式完整恢复；
 - [ ] `wbPages.draftSchema` 更新；
-- [ ] 刷新后台重新进入编辑器，组件树仍存在；
-- [ ] 非法 `type`（非 `wb.*`）不能通过服务端 Schema 校验写入发布流程。
+- [ ] 保存的是 Website Schema JSON，而不是最终 HTML。
 
 ---
 
-## 13. Preview 验收
+## 16. 首次 Publish
 
-点击：
-
-```text
-预览
-```
-
-验收：
-
-- [ ] 弹出当前 Draft 预览；
-- [ ] Preview 使用当前编辑中的 Schema；
-- [ ] 不要求先 Publish；
-- [ ] 关闭预览不会丢失编辑状态。
-
----
-
-## 14. 首次 Publish 验收
-
-点击：
-
-```text
-发布
-```
-
-预期：
+点击“发布”，预期：
 
 ```text
 wbPages.status = published
@@ -495,84 +504,43 @@ wbPageVersions.version = 1
 
 验收：
 
-- [ ] 发布成功；
-- [ ] 新增 `wbPageVersions` 记录；
-- [ ] version 从 1 开始；
-- [ ] version.schema 是发布时的完整 Website Schema；
-- [ ] `publishedVersionId` 指向刚创建的版本。
+- [ ] 新增 V1 版本；
+- [ ] version.schema 为发布时完整 Schema；
+- [ ] publishedVersionId 指向 V1。
 
 ---
 
-## 15. Draft / Published 隔离验收（Release Gate 核心）
+## 17. Draft / Published 隔离（Release Gate）
 
-这项必须通过。
+1. 发布 Heading=`版本 A`。
+2. 后台修改为 `版本 B（未发布）`。
+3. 只点“保存草稿”，不要发布。
+4. 访问前台 Published 页面。
 
-### 步骤 A
-
-第一次发布后，在前台确认 Heading 为：
+必须仍显示：
 
 ```text
 版本 A
 ```
 
-### 步骤 B
-
-回后台，把 Heading 改为：
+再次发布后：
 
 ```text
-版本 B（未发布）
-```
-
-只点击：
-
-```text
-保存草稿
-```
-
-**不要点击发布。**
-
-### 步骤 C
-
-重新打开前台发布地址。
-
-预期：
-
-```text
-仍然显示：版本 A
-```
-
-不能显示：
-
-```text
-版本 B（未发布）
-```
-
-### 步骤 D
-
-回后台点击发布。
-
-预期：
-
-```text
-新增 version = 2
-publishedVersionId 指向 V2
-前台变为版本 B（未发布）对应的新内容
+V2 新增
+publishedVersionId → V2
+前台显示版本 B
+V1 仍保留
 ```
 
 验收：
 
 - [ ] Draft 修改不会污染 Published；
-- [ ] 再发布创建新版本，而不是覆盖 V1；
-- [ ] V1 记录仍保留；
-- [ ] 前台只读取 `publishedVersionId` 指向的版本。
+- [ ] 发布创建不可变新版本；
+- [ ] 旧版本不会被覆盖。
 
 ---
 
-## 16. 前台 URL 验收
-
-### 最新 client-v2
-
-NocoBase v2 自定义客户端路由默认带 `/v` 前缀。
+## 18. 前台 URL
 
 例如：
 
@@ -587,34 +555,18 @@ routePath = /
 http://localhost:13000/v/website/demo-company/
 ```
 
-如果：
-
-```text
-routePath = /about
-```
-
-访问：
-
-```text
-http://localhost:13000/v/website/demo-company/about
-```
-
-### 旧 client
-
-旧客户端的实际前缀以你当前 NocoBase 路由模式为准；V1 也注册了兼容发布页路由。
-
 验收：
 
-- [ ] Published 页面能读取发布版本；
-- [ ] 未发布页面显示不可用；
-- [ ] 公共查询 API 不返回 Draft；
-- [ ] 页面根据浏览器宽度使用 Desktop / Mobile renderer。
+- [ ] Published 页面可访问；
+- [ ] 未发布页面不能从 Public API 读取 Draft；
+- [ ] 前台只读取 Published Version；
+- [ ] Desktop/Mobile Renderer 正常。
 
 ---
 
-## 17. ACL 验收
+## 19. ACL
 
-V1 服务端注册三个权限片段：
+服务端权限片段：
 
 ```text
 pm.website-builder.view
@@ -622,152 +574,86 @@ pm.website-builder.edit
 pm.website-builder.publish
 ```
 
-语义：
-
-### View
-
-允许：
-
-```text
-站点/页面/主题读取
-版本读取
-getDraft
-getPublished
-```
-
-### Edit
-
-允许：
-
-```text
-Site create/update/destroy
-Page create/update/destroy
-Theme create/update/destroy
-saveDraft
-```
-
-### Publish
-
-允许：
-
-```text
-websiteBuilder:publish
-```
-
-公开访问只放行：
-
-```text
-websiteBuilder:getPublishedByPath
-```
-
-验收建议创建三个角色：
-
-```text
-Website Viewer
-Website Editor
-Website Publisher
-```
-
-注意：Editor 通常需要同时授予 View + Edit；Publisher 通常需要 View + Publish，是否再给 Edit 由业务决定。
-
 验收：
 
 - [ ] 仅 View 不能保存；
 - [ ] View + Edit 可以保存 Draft；
-- [ ] 没有 Publish 权限不能发布；
-- [ ] View + Publish 可以执行 Publish（前提是已有合法 Draft）；
-- [ ] 匿名用户不能调用 Draft/保存/Publish API；
-- [ ] 匿名用户可以读取已发布页面。
+- [ ] 无 Publish 权限不能发布；
+- [ ] View + Publish 可发布已有合法 Draft；
+- [ ] 匿名用户不能读取 Draft、保存或发布；
+- [ ] 匿名用户可以读取 Published 页面。
 
 ---
 
-## 18. 数据库版本记录检查
+## 20. V1 当前边界
 
-连续发布三次后检查：
+以下暂不作为本阶段失败：
 
-```text
-wbPageVersions
-```
-
-预期：
-
-```text
-pageId | version
--------|--------
-X      | 1
-X      | 2
-X      | 3
-```
-
-而不是始终覆盖同一行。
-
----
-
-## 19. 当前 V1 已知边界
-
-以下不作为 V1 验收失败：
-
-- Canvas 当前为同 React 文档渲染，尚未升级为 iframe CSS 完全隔离；
-- 暂无拖拽排序，V1 以“插入/选择/编辑/删除”形成零代码闭环；
+- Canvas 仍在当前 React 文档内，尚未升级 iframe CSS 完全隔离；
 - 暂无 Undo / Redo；
-- 暂无组件复制/粘贴；
-- 暂无 Theme Token 编辑 UI；
+- 暂无复制 / 粘贴；
+- 暂无多选；
+- 暂无绝对定位自由画布；
+- 暂无 Grid 单元格拖动拉伸；
+- 暂无 Theme Token 完整 UI；
 - 暂无 Collection 动态数据绑定；
 - 暂无 Header / Footer / Carousel 等高级组件；
-- 暂无 SSR / SSG；
-- 前台目前由 NocoBase React Runtime 渲染；
-- ACL 已有服务端权限边界，但按钮级隐藏仍可在后续版本完善；
-- `client-v2` 与旧 `client` 共存，后续稳定后可逐步以 `client-v2` 为主。
+- 暂无 SSR / SSG。
 
-这些属于后续 V1.1/V2 增强范围。
+**拖拽排序、跨容器移动、图层树和 Flex/Grid 基础排版已经属于 V1 Gate A，不再列为后续能力。**
 
 ---
 
-## 20. 验收失败时需要回传的信息
+## 21. 失败时回传
 
-如果某一步失败，请把以下信息发回：
+请提供：
 
 ```text
-1. NocoBase 当前 commit / version
+1. NocoBase commit / version
 2. Node 版本
-3. yarn build @lzh/plugin-website-builder 完整错误
-4. yarn dev-server 对应服务器日志
-5. 浏览器控制台错误
-6. Network 中失败接口的 URL / status / response
+3. yarn build @lzh/plugin-website-builder 完整输出
+4. yarn dev-server 对应日志
+5. 浏览器 Console 错误
+6. Network 失败请求 URL / status / response
 7. 出错页面截图
+8. 精确复现步骤
 ```
 
-如果是数据库问题，再附：
+如果是拖拽问题，请特别说明：
 
 ```text
-wbSites
-wbPages
-wbPageVersions
-wbThemes
+拖动源：哪个组件
+原父节点：哪个组件
+目标节点：哪个组件
+期望 before / inside / after 哪个位置
+实际结果
 ```
-
-是否成功创建。
 
 ---
 
-## 21. V1 通过标准
+## 22. V1 最终通过标准
 
-只有以下全部成立，V1 才视为完成本地验收：
+Gate A：
 
-- [ ] 插件 build 成功；
-- [ ] 插件 enable/upgrade 成功；
-- [ ] NocoBase 正常启动；
-- [ ] Website Builder 后台入口可访问；
-- [ ] Site/Page 可创建；
-- [ ] 八种基础节点可正常工作；
-- [ ] 内容/基础样式可零代码修改；
-- [ ] Desktop/Mobile 可分别配置；
-- [ ] Draft 可保存并恢复；
-- [ ] Preview 正常；
-- [ ] Publish 正常；
-- [ ] `wbPageVersions` 正确递增；
-- [ ] Draft/Published 隔离通过；
-- [ ] client-v2 发布页可以访问；
+- [ ] 组件层级约束通过；
+- [ ] 点击插入按最近合法父节点工作；
+- [ ] Palette → Canvas 拖入通过；
+- [ ] Canvas 同级排序通过；
+- [ ] Canvas 跨容器移动通过；
+- [ ] 图层树排序 / 跨容器移动通过；
+- [ ] Canvas / Layers 双向选中通过；
+- [ ] 自身/后代/非法父子移动全部拒绝；
+- [ ] Flex / Grid / Margin / Padding / Gap 排版通过；
+- [ ] Desktop / Mobile 通过；
+- [ ] Preview 无编辑器辅助 UI。
+
+Gate B：
+
+- [ ] Draft 保存/恢复通过；
+- [ ] Publish 通过；
+- [ ] Page Version 正确递增；
+- [ ] Draft / Published 隔离通过；
+- [ ] Published URL 通过；
 - [ ] ACL 最小权限边界通过。
 
-验收通过后再进入 V1.1：拖拽排序、iframe Canvas、Undo/Redo、Theme Token 与更完整样式面板。
+只有 Gate A + Gate B 全部通过，V1 才视为完成。
