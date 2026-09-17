@@ -52,11 +52,26 @@ export function PropertyPanel({ node, device, onPropsChange, onStyleChange, onDe
   const layout = style.layout || {};
   const isFlex = layout.display === 'flex';
   const isGrid = layout.display === 'grid' || node.type === 'wb.grid';
+  const canDelete = node.type !== 'wb.page';
 
   return (
     <div style={{ width: 320, flex: '0 0 320px', padding: 16, overflow: 'auto', borderLeft: '1px solid #eee' }}>
-      <Typography.Title level={5}>属性</Typography.Title>
-      <Typography.Text type="secondary">{node.type} / {device}</Typography.Text>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Typography.Title level={5} style={{ margin: 0 }}>属性</Typography.Title>
+        {canDelete && (
+          <Button danger size="small" onClick={onDelete}>
+            删除
+          </Button>
+        )}
+      </div>
+      <Typography.Text type="secondary" style={{ display: 'block', marginTop: 6 }}>
+        {node.type} / {device}
+      </Typography.Text>
+      {canDelete && (
+        <Typography.Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+          可点击“删除”或按 Delete / Backspace
+        </Typography.Text>
+      )}
       <Divider />
       {(node.type === 'wb.heading' || node.type === 'wb.text' || node.type === 'wb.button') && (
         <Space direction="vertical" style={{ width: '100%' }}>
@@ -209,10 +224,6 @@ export function PropertyPanel({ node, device, onPropsChange, onStyleChange, onDe
         <span>圆角</span>
         <Input value={style.border?.radius || ''} placeholder="8px" onChange={(e) => onStyleChange({ border: { radius: e.target.value } })} />
       </Space>
-
-      {node.type !== 'wb.page' && (
-        <Button danger block style={{ marginTop: 20 }} onClick={onDelete}>删除组件</Button>
-      )}
     </div>
   );
 }
