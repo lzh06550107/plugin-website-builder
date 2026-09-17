@@ -18,6 +18,12 @@ export function editorReducer(state: WebsiteEditorState, action: WebsiteEditorAc
       return { ...state, device: action.device };
     case 'replace-document':
       return { ...state, document: action.document, dirty: action.markDirty ?? state.dirty };
+    case 'set-dragging':
+      return { ...state, dragging: action.source };
+    case 'set-drop-target':
+      return { ...state, dropTarget: action.target };
+    case 'clear-drag':
+      return { ...state, dragging: undefined, dropTarget: undefined };
     case 'mark-saved':
       return { ...state, dirty: false };
     default:
