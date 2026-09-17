@@ -5,26 +5,46 @@ NocoBase 2.x Website Builder 插件：在 NocoBase 后台零代码编辑前台�
 ## V1 能力
 
 - Site / Page 管理
-- Page / Section / Container / Grid / Heading / Text / Image / Button
+- 新建结构固定为 `Page → Container → Grid → Heading/Text/Image/Button`
+- `Section` 仅保留旧 Schema 兼容渲染，不再出现在新建组件面板
 - 组件父子层级约束
+- 当前层级不允许的组件在组件面板直接禁用
 - “组件 / 图层”双面板
 - Canvas 与图层树双向选中
 - 左侧组件拖入 Canvas
 - Canvas 同级拖拽排序
-- Canvas 跨容器移动
+- Canvas 跨合法容器移动
 - 图层树同级排序与跨父级移动
 - 非法父子层级、自身和 descendant 移动阻止
 - Flex / Grid 基础零代码排版
 - Width / MaxWidth / MinHeight / Gap
 - 四边 Margin / Padding
 - Desktop / Mobile 响应式样式
-- 编辑态空容器命中区与 Drop Indicator
+- 空容器虚线命中区与 Drop Indicator
+- 选中节点不绘制实体外框
+- 非 Page 组件可在属性面板顶部删除，并支持 Delete / Backspace
 - Preview / Published Renderer 不注入编辑器辅助 UI
 - 草稿保存与预览
 - 不可变发布版本
 - 已发布页面渲染
 - View / Edit / Publish 三类 ACL snippet
 - `client` 与 `client-v2` 入口
+
+## V1 新建组件层级
+
+```text
+Page
+├─ Container
+│  ├─ Grid
+│  │  ├─ Heading
+│  │  ├─ Text
+│  │  ├─ Image
+│  │  └─ Button
+│  └─ Grid
+└─ Container
+```
+
+点击插入采用显式父级：要新增 Container 先选 Page；要新增 Grid 先选 Container；要新增内容先选 Grid。选中内容组件时可以继续新增同级内容。布局组件不会为了插入而自动跳到远端 ancestor。
 
 ## 架构原则
 
