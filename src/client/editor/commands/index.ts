@@ -4,6 +4,7 @@ import { insertNode, removeNode, updateNode } from '../../../shared/tree';
 export * from './insert';
 export * from './move';
 export * from './validate';
+export * from './migrate';
 
 function mergeWebsiteStyle(base: Partial<WebsiteStyle> = {}, patch: Partial<WebsiteStyle> = {}): WebsiteStyle {
   return {
