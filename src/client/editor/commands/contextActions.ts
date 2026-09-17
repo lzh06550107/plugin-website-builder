@@ -41,21 +41,21 @@ export interface PasteEditorNodeStyleResult {
 }
 
 function cloneStyle(style: WebsiteStyle = {}): WebsiteStyle {
-  return {
-    layout: style.layout ? { ...style.layout } : undefined,
-    spacing: style.spacing ? { ...style.spacing } : undefined,
-    typography: style.typography ? { ...style.typography } : undefined,
-    background: style.background ? { ...style.background } : undefined,
-    border: style.border ? { ...style.border } : undefined,
-  };
+  const cloned: WebsiteStyle = {};
+  if (style.layout) cloned.layout = { ...style.layout };
+  if (style.spacing) cloned.spacing = { ...style.spacing };
+  if (style.typography) cloned.typography = { ...style.typography };
+  if (style.background) cloned.background = { ...style.background };
+  if (style.border) cloned.border = { ...style.border };
+  return cloned;
 }
 
 function cloneResponsive(responsive?: ResponsiveStyle): ResponsiveStyle | undefined {
   if (!responsive) return undefined;
-  return {
-    desktop: responsive.desktop ? cloneStyle(responsive.desktop) : undefined,
-    mobile: responsive.mobile ? cloneStyle(responsive.mobile) : undefined,
-  };
+  const cloned: ResponsiveStyle = {};
+  if (responsive.desktop) cloned.desktop = cloneStyle(responsive.desktop);
+  if (responsive.mobile) cloned.mobile = cloneStyle(responsive.mobile);
+  return cloned;
 }
 
 function cloneNode(node: WebsiteNode, idFactory: NodeIdFactory, usedIds: Set<string>): WebsiteNode {
