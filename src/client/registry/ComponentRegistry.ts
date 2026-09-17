@@ -1,10 +1,11 @@
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import type { WebsiteNode, WebsiteNodeType, WebsiteStyle } from '../../shared/schema';
 import type { WebsiteDevice } from '../../shared/schema/responsive';
 
 export interface WebsiteComponentRenderProps {
   node: WebsiteNode;
   device: WebsiteDevice;
+  style?: CSSProperties;
   selected?: boolean;
   onSelect?: (nodeId: string) => void;
   children?: ReactNode;
