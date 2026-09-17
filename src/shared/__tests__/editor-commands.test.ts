@@ -20,6 +20,23 @@ test('device action switches between desktop and mobile', () => {
   assert.equal(editorReducer(state, { type: 'set-device', device: 'mobile' }).device, 'mobile');
 });
 
+test('editor tracks and clears drag source and drop target', () => {
+  const state = createEditorState(createPageRoot('root'));
+  const dragging = editorReducer(state, {
+    type: 'set-dragging',
+    source: { kind: 'palette', componentType: 'wb.text' },
+  });
+  const withTarget = editorReducer(dragging, {
+    type: 'set-drop-target',
+    target: { parentId: 'section-1', index: 0, position: 'inside' },
+  });
+  assert.deepEqual(withTarget.dragging, { kind: 'palette', componentType: 'wb.text' });
+  assert.deepEqual(withTarget.dropTarget, { parentId: 'section-1', index: 0, position: 'inside' });
+  const cleared = editorReducer(withTarget, { type: 'clear-drag' });
+  assert.equal(cleared.dragging, undefined);
+  assert.equal(cleared.dropTarget, undefined);
+});
+
 test('commands insert child and update props/style immutably', () => {
   const root = createPageRoot('root');
   const section = createNode('wb.section', 'section-1');
