@@ -51,15 +51,16 @@ export const builtinComponentDefinitions: WebsiteComponentDefinition[] = [
     label: 'Page',
     category: 'layout',
     acceptsChildren: true,
-    allowedChildTypes: ['wb.section'],
+    allowedChildTypes: ['wb.container'],
     render: Page,
   },
   {
+    // Legacy compatibility only. New pages no longer create Section nodes.
     type: 'wb.section',
     label: 'Section',
     category: 'layout',
     acceptsChildren: true,
-    allowedChildTypes: ['wb.container', 'wb.grid', ...CONTENT_TYPES],
+    allowedChildTypes: ['wb.container'],
     render: Section,
   },
   {
@@ -67,7 +68,7 @@ export const builtinComponentDefinitions: WebsiteComponentDefinition[] = [
     label: 'Container',
     category: 'layout',
     acceptsChildren: true,
-    allowedChildTypes: ['wb.grid', ...CONTENT_TYPES],
+    allowedChildTypes: ['wb.grid'],
     render: Container,
   },
   {
@@ -75,7 +76,7 @@ export const builtinComponentDefinitions: WebsiteComponentDefinition[] = [
     label: 'Grid',
     category: 'layout',
     acceptsChildren: true,
-    allowedChildTypes: ['wb.container', ...CONTENT_TYPES],
+    allowedChildTypes: CONTENT_TYPES,
     render: Grid,
   },
   { type: 'wb.heading', label: 'Heading', category: 'content', acceptsChildren: false, render: Heading },
