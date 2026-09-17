@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import { createNode, createPageRoot } from '../schema';
 import { findNode } from '../tree';
 import { createEditorState, editorReducer } from '../../client/editor/state';
-import { insertChild, removeEditorNode, updateNodeProps, updateNodeStyle } from '../../client/editor/commands';
+import {
+  deleteEditorNode,
+  insertChild,
+  removeEditorNode,
+  updateNodeProps,
+  updateNodeStyle,
+} from '../../client/editor/commands';
 
 test('editor preserves selection when document changes', () => {
   const root = createPageRoot('root');
@@ -57,4 +63,22 @@ test('remove command never removes the root node', () => {
   const inserted = insertChild(root, 'root', section);
   assert.equal(findNode(removeEditorNode(inserted, 'section-1'), 'section-1'), undefined);
   assert.equal(removeEditorNode(root, 'root'), root);
+});
+
+test('delete command deletes the exact requested node and returns its parent for selection', () => {
+  const heading = createNode('wb.heading', 'heading-1');
+  const text = createNode('wb.text', 'text-1');
+  const grid = { ...createNode('wb.grid', 'grid-1'), children: [heading, text] };
+  const container = { ...createNode('wb.container', 'container-1'), children: [grid] };
+  const root = { ...createPageRoot('root'), children: [container] };
+
+  const result = deleteEditorNode(root, 'text-1');
+  assert.equal(result.deleted, true);
+  assert.equal(result.parentId, 'grid-1');
+  assert.equal(findNode(result.document, 'text-1'), undefined);
+  assert.ok(findNode(result.document, 'heading-1'));
+
+  const rootResult = deleteEditorNode(root, 'root');
+  assert.equal(rootResult.deleted, false);
+  assert.equal(rootResult.document, root);
 });
