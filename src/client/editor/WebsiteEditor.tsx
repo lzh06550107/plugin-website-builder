@@ -8,15 +8,18 @@ import { WebsiteRenderer } from '../renderer';
 import { Canvas } from './canvas/Canvas';
 import {
   convertLegacySection,
+  copyEditorNodeStyle,
   deleteEditorNode,
   duplicateEditorNode,
   findInsertionParent,
   insertComponent,
   moveEditorNode,
   moveEditorNodeRelative,
+  pasteEditorNodeStyle,
   updateNodeProps,
   updateNodeStyle,
 } from './commands';
+import type { WebsiteNodeStyleClipboard } from './commands';
 import type { DragSource, DropTarget } from './dnd';
 import { validateDropSource } from './dnd';
 import { EditorSidebar } from './panels/EditorSidebar';
@@ -48,6 +51,7 @@ function isEditingText(target: EventTarget | null) {
 export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onPublish }: WebsiteEditorProps) {
   const [state, dispatch] = useReducer(editorReducer, initialDocument, createEditorState);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [styleClipboard, setStyleClipboard] = React.useState<WebsiteNodeStyleClipboard>();
   const selectedNode = useMemo(
     () => (state.selectedNodeId ? findNode(state.document, state.selectedNodeId) : undefined),
     [state.document, state.selectedNodeId],
@@ -141,6 +145,33 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
     dispatch({ type: 'select', nodeId });
   }, [state.document]);
 
+  const handleCopyNodeStyle = React.useCallback((nodeId: string) => {
+    const result = copyEditorNodeStyle(state.document, nodeId);
+    if (!result.copied || !result.clipboard) {
+      if (result.reason) message.warning(result.reason);
+      return;
+    }
+    setStyleClipboard(result.clipboard);
+    const source = findNode(state.document, nodeId);
+    const label = source ? componentRegistry.get(source.type)?.label || source.type : '组件';
+    message.success(`已复制 ${label} 样式`);
+  }, [state.document]);
+
+  const handlePasteNodeStyle = React.useCallback((nodeId: string) => {
+    if (!styleClipboard) {
+      message.warning('请先复制一个组件的样式');
+      return;
+    }
+    const result = pasteEditorNodeStyle(state.document, nodeId, styleClipboard);
+    if (!result.pasted) {
+      if (result.reason) message.warning(result.reason);
+      return;
+    }
+    replaceDocument(result.document);
+    dispatch({ type: 'select', nodeId });
+    message.success('样式已粘贴');
+  }, [state.document, styleClipboard]);
+
   const handleDelete = React.useCallback(() => {
     if (!selectedNode) return;
     handleDeleteNode(selectedNode.id);
@@ -227,6 +258,9 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
           onDeleteNode={handleDeleteNode}
           onDuplicateNode={handleDuplicateNode}
           onMoveNodeRelative={handleMoveNodeRelative}
+          hasStyleClipboard={Boolean(styleClipboard)}
+          onCopyNodeStyle={handleCopyNodeStyle}
+          onPasteNodeStyle={handlePasteNodeStyle}
           onDragStart={(source) => dispatch({ type: 'set-dragging', source })}
           onDragEnd={() => dispatch({ type: 'clear-drag' })}
           onDropTargetChange={(target) => dispatch({ type: 'set-drop-target', target })}
