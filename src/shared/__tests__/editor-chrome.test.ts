@@ -3,18 +3,19 @@ import assert from 'node:assert/strict';
 import { createNode } from '../schema';
 import { resolveEditorChromeStyle } from '../../client/renderer/editorChrome';
 
-test('empty section receives editor-only minimum height', () => {
-  const section = createNode('wb.section', 'section-1');
+test('empty layout node receives editor-only minimum height without selected solid outline', () => {
+  const container = createNode('wb.container', 'container-1');
 
-  const editorStyle = resolveEditorChromeStyle(section, {}, {
+  const editorStyle = resolveEditorChromeStyle(container, {}, {
     editing: true,
     acceptsChildren: true,
     selected: true,
   });
   assert.equal(editorStyle.minHeight, '160px');
-  assert.equal(editorStyle.outline, '2px solid #1677ff');
+  assert.equal(editorStyle.outline, undefined);
+  assert.equal(editorStyle.outlineOffset, undefined);
 
-  const publishedStyle = resolveEditorChromeStyle(section, {}, {
+  const publishedStyle = resolveEditorChromeStyle(container, {}, {
     editing: false,
     acceptsChildren: true,
     selected: false,
@@ -24,8 +25,8 @@ test('empty section receives editor-only minimum height', () => {
 });
 
 test('configured minimum height is preserved in editor', () => {
-  const section = createNode('wb.section', 'section-2');
-  const style = resolveEditorChromeStyle(section, { minHeight: '320px' }, {
+  const container = createNode('wb.container', 'container-2');
+  const style = resolveEditorChromeStyle(container, { minHeight: '320px' }, {
     editing: true,
     acceptsChildren: true,
     selected: false,
@@ -33,10 +34,10 @@ test('configured minimum height is preserved in editor', () => {
   assert.equal(style.minHeight, '320px');
 });
 
-test('non-empty section is not forced to editor minimum height', () => {
-  const section = createNode('wb.section', 'section-3');
-  section.children.push(createNode('wb.text', 'text-1'));
-  const style = resolveEditorChromeStyle(section, {}, {
+test('non-empty container is not forced to editor minimum height', () => {
+  const container = createNode('wb.container', 'container-3');
+  container.children.push(createNode('wb.grid', 'grid-1'));
+  const style = resolveEditorChromeStyle(container, {}, {
     editing: true,
     acceptsChildren: true,
     selected: false,
@@ -46,7 +47,7 @@ test('non-empty section is not forced to editor minimum height', () => {
 
 test('page keeps a usable editor canvas height even after children are added', () => {
   const page = createNode('wb.page', 'page-root');
-  page.children.push(createNode('wb.section', 'section-4'));
+  page.children.push(createNode('wb.container', 'container-4'));
   const style = resolveEditorChromeStyle(page, {}, {
     editing: true,
     acceptsChildren: true,
