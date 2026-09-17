@@ -14,16 +14,20 @@ function fixture() {
   return { ...createPageRoot('root'), children: [container1, container2] };
 }
 
-test('finds selected or nearest legal insertion parent', () => {
+test('click insertion requires explicit layout parent selection while content can add siblings', () => {
   const root = fixture();
   assert.equal(findInsertionParent(root, componentRegistry, 'root', 'wb.container')?.id, 'root');
   assert.equal(findInsertionParent(root, componentRegistry, 'container-1', 'wb.grid')?.id, 'container-1');
+  assert.equal(findInsertionParent(root, componentRegistry, 'grid-1', 'wb.text')?.id, 'grid-1');
   assert.equal(findInsertionParent(root, componentRegistry, 'heading-1', 'wb.text')?.id, 'grid-1');
-  assert.equal(findInsertionParent(root, componentRegistry, 'heading-1', 'wb.grid')?.id, 'container-1');
+
+  // A selected content node must not cause a layout component to jump to a distant ancestor.
+  assert.equal(findInsertionParent(root, componentRegistry, 'heading-1', 'wb.grid'), undefined);
+  assert.equal(findInsertionParent(root, componentRegistry, 'grid-1', 'wb.container'), undefined);
   assert.equal(findInsertionParent(root, componentRegistry, 'root', 'wb.text'), undefined);
 });
 
-test('inserts with hierarchy awareness and supports explicit indexed target', () => {
+test('inserts with strict hierarchy and supports explicit indexed target', () => {
   const root = fixture();
   const sibling = insertComponent(root, componentRegistry, 'heading-1', createNode('wb.text', 'text-1'));
   assert.equal(sibling.inserted, true);
