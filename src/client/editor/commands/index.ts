@@ -1,6 +1,10 @@
 import type { DeviceType, WebsiteNode, WebsiteStyle } from '../../../shared/schema';
 import { insertNode, removeNode, updateNode } from '../../../shared/tree';
 
+export * from './insert';
+export * from './move';
+export * from './validate';
+
 function mergeWebsiteStyle(base: Partial<WebsiteStyle> = {}, patch: Partial<WebsiteStyle> = {}): WebsiteStyle {
   return {
     layout: { ...base.layout, ...patch.layout },
