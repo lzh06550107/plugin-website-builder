@@ -44,12 +44,10 @@ export default function PageEditorPage({ pageId }: PageEditorPageProps) {
           setSaving(false);
         }
       }}
-      onPublish={async (schema) => {
+      onPublish={async () => {
         setPublishing(true);
         try {
-          await saveDraft(api, pageId, schema);
           await publishPage(api, pageId);
-          setDocument(schema);
         } finally {
           setPublishing(false);
         }

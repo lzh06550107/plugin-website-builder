@@ -11,6 +11,7 @@ export class PluginWebsiteBuilderClient extends Plugin {
       title: 'Website Builder',
       icon: 'LayoutOutlined',
       Component: WebsiteBuilderSettingsPage,
+      aclSnippet: 'pm.website-builder.view',
     });
 
     this.app.router.add('website-builder.public', {

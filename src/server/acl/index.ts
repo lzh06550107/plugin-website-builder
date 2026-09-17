@@ -1,12 +1,45 @@
+export const WEBSITE_BUILDER_VIEW_SNIPPET = 'pm.website-builder.view';
+export const WEBSITE_BUILDER_EDIT_SNIPPET = 'pm.website-builder.edit';
+export const WEBSITE_BUILDER_PUBLISH_SNIPPET = 'pm.website-builder.publish';
+
 export function registerWebsiteBuilderAcl(app: any) {
-  app.acl.allow('wbSites', '*', 'loggedIn');
-  app.acl.allow('wbPages', '*', 'loggedIn');
-  app.acl.allow('wbThemes', '*', 'loggedIn');
-  app.acl.allow('wbPageVersions', 'list', 'loggedIn');
-  app.acl.allow('wbPageVersions', 'get', 'loggedIn');
-  app.acl.allow('websiteBuilder', 'getDraft', 'loggedIn');
-  app.acl.allow('websiteBuilder', 'saveDraft', 'loggedIn');
-  app.acl.allow('websiteBuilder', 'publish', 'loggedIn');
-  app.acl.allow('websiteBuilder', 'getPublished', 'loggedIn');
+  app.acl.registerSnippet({
+    name: WEBSITE_BUILDER_VIEW_SNIPPET,
+    actions: [
+      'wbSites:list',
+      'wbSites:get',
+      'wbPages:list',
+      'wbPages:get',
+      'wbThemes:list',
+      'wbThemes:get',
+      'wbPageVersions:list',
+      'wbPageVersions:get',
+      'websiteBuilder:getDraft',
+      'websiteBuilder:getPublished',
+    ],
+  });
+
+  app.acl.registerSnippet({
+    name: WEBSITE_BUILDER_EDIT_SNIPPET,
+    actions: [
+      'wbSites:create',
+      'wbSites:update',
+      'wbSites:destroy',
+      'wbPages:create',
+      'wbPages:update',
+      'wbPages:destroy',
+      'wbThemes:create',
+      'wbThemes:update',
+      'wbThemes:destroy',
+      'websiteBuilder:saveDraft',
+    ],
+  });
+
+  app.acl.registerSnippet({
+    name: WEBSITE_BUILDER_PUBLISH_SNIPPET,
+    actions: ['websiteBuilder:publish'],
+  });
+
+  // Published website data is intentionally public; draft and management APIs are not.
   app.acl.allow('websiteBuilder', 'getPublishedByPath', 'public');
 }
