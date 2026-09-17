@@ -1,11 +1,12 @@
 import React, { useMemo, useReducer } from 'react';
-import { Input, message, Modal, Space } from 'antd';
+import { message, Modal } from 'antd';
 import type { WebsiteNode, WebsiteStyle } from '../../shared/schema';
 import { createNode } from '../../shared/schema';
 import { findNode } from '../../shared/tree';
 import { componentRegistry } from '../registry';
 import { WebsiteRenderer } from '../renderer';
 import { WebsiteEditorInteractionsProvider } from '../renderer/editorInteractions';
+import { WebsiteAssetPicker } from './assets';
 import { Canvas } from './canvas/Canvas';
 import {
   convertLegacySection,
@@ -149,12 +150,9 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
     });
   }, [state.document]);
 
-  const handleInlineImageApply = React.useCallback(() => {
+  const handleInlineImageApply = React.useCallback((value: { src: string; alt: string }) => {
     if (!imageEditor) return;
-    const result = updateInlineImage(state.document, imageEditor.nodeId, {
-      src: imageEditor.src,
-      alt: imageEditor.alt,
-    });
+    const result = updateInlineImage(state.document, imageEditor.nodeId, value);
     if (result.updated) {
       replaceDocument(result.document);
       dispatch({ type: 'select', nodeId: imageEditor.nodeId });
@@ -332,46 +330,15 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
         />
       </div>
 
-      <Modal
-        open={Boolean(imageEditor)}
-        title="替换图片"
-        okText="应用"
-        cancelText="取消"
-        onOk={handleInlineImageApply}
-        onCancel={() => setImageEditor(undefined)}
-        destroyOnClose
-      >
-        <Space direction="vertical" style={{ width: '100%' }} size={12}>
-          <div>
-            <div style={{ marginBottom: 6 }}>图片 URL</div>
-            <Input
-              autoFocus
-              value={imageEditor?.src || ''}
-              placeholder="https://example.com/image.jpg / /uploads/image.jpg"
-              onChange={(event) =>
-                setImageEditor((current) => (current ? { ...current, src: event.target.value } : current))
-              }
-            />
-          </div>
-          <div>
-            <div style={{ marginBottom: 6 }}>Alt</div>
-            <Input
-              value={imageEditor?.alt || ''}
-              placeholder="图片替代文字"
-              onChange={(event) =>
-                setImageEditor((current) => (current ? { ...current, alt: event.target.value } : current))
-              }
-            />
-          </div>
-          {imageEditor?.src && (
-            <img
-              src={imageEditor.src}
-              alt={imageEditor.alt}
-              style={{ display: 'block', maxWidth: '100%', maxHeight: 240, objectFit: 'contain', border: '1px solid #eee' }}
-            />
-          )}
-        </Space>
-      </Modal>
+      {imageEditor && (
+        <WebsiteAssetPicker
+          open
+          initialSrc={imageEditor.src}
+          initialAlt={imageEditor.alt}
+          onCancel={() => setImageEditor(undefined)}
+          onApply={handleInlineImageApply}
+        />
+      )}
 
       <Modal
         open={previewOpen}
