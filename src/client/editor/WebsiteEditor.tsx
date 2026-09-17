@@ -2,11 +2,18 @@ import React, { useMemo, useReducer } from 'react';
 import { message, Modal } from 'antd';
 import type { WebsiteNode, WebsiteStyle } from '../../shared/schema';
 import { createNode } from '../../shared/schema';
-import { findNode } from '../../shared/tree';
+import { findNode, getParentNode } from '../../shared/tree';
 import { componentRegistry } from '../registry';
 import { WebsiteRenderer } from '../renderer';
 import { Canvas } from './canvas/Canvas';
-import { insertComponent, moveEditorNode, removeEditorNode, updateNodeProps, updateNodeStyle } from './commands';
+import {
+  findInsertionParent,
+  insertComponent,
+  moveEditorNode,
+  removeEditorNode,
+  updateNodeProps,
+  updateNodeStyle,
+} from './commands';
 import type { DragSource, DropTarget } from './dnd';
 import { validateDropSource } from './dnd';
 import { EditorSidebar } from './panels/EditorSidebar';
@@ -28,6 +35,13 @@ function nextNodeId(type: string) {
   return `${type.replace('wb.', '')}-${Date.now().toString(36)}-${nodeSequence}`;
 }
 
+function isEditingText(target: EventTarget | null) {
+  const element = target as HTMLElement | null;
+  if (!element) return false;
+  const tag = element.tagName;
+  return element.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
 export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onPublish }: WebsiteEditorProps) {
   const [state, dispatch] = useReducer(editorReducer, initialDocument, createEditorState);
   const [previewOpen, setPreviewOpen] = React.useState(false);
@@ -37,6 +51,9 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
   );
 
   const replaceDocument = (document: WebsiteNode) => dispatch({ type: 'replace-document', document, markDirty: true });
+
+  const handleCanInsert = (type: string) =>
+    Boolean(findInsertionParent(state.document, componentRegistry, state.selectedNodeId, type));
 
   const handleInsert = (type: string) => {
     const node = createNode(type, nextNodeId(type));
@@ -91,11 +108,23 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
     replaceDocument(updateNodeStyle(state.document, selectedNode.id, state.device, patch));
   };
 
-  const handleDelete = () => {
+  const handleDelete = React.useCallback(() => {
     if (!selectedNode || selectedNode.id === state.document.id) return;
+    const parentId = getParentNode(state.document, selectedNode.id)?.id || state.document.id;
     replaceDocument(removeEditorNode(state.document, selectedNode.id));
-    dispatch({ type: 'select', nodeId: state.document.id });
-  };
+    dispatch({ type: 'select', nodeId: parentId });
+  }, [selectedNode, state.document]);
+
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.key !== 'Delete' && event.key !== 'Backspace') || isEditingText(event.target)) return;
+      if (!selectedNode || selectedNode.id === state.document.id) return;
+      event.preventDefault();
+      handleDelete();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleDelete, selectedNode, state.document.id]);
 
   const handleSave = async () => {
     await onSave?.(state.document);
@@ -128,6 +157,7 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
           selectedNodeId={state.selectedNodeId}
           onSelect={(nodeId) => dispatch({ type: 'select', nodeId })}
           onInsert={handleInsert}
+          canInsert={handleCanInsert}
           onDragStart={(source) => dispatch({ type: 'set-dragging', source })}
           onDragEnd={() => dispatch({ type: 'clear-drag' })}
           onMoveNode={handleMoveNode}
