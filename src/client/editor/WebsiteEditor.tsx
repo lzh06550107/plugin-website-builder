@@ -2,16 +2,16 @@ import React, { useMemo, useReducer } from 'react';
 import { message, Modal } from 'antd';
 import type { WebsiteNode, WebsiteStyle } from '../../shared/schema';
 import { createNode } from '../../shared/schema';
-import { findNode, getParentNode } from '../../shared/tree';
+import { findNode } from '../../shared/tree';
 import { componentRegistry } from '../registry';
 import { WebsiteRenderer } from '../renderer';
 import { Canvas } from './canvas/Canvas';
 import {
   convertLegacySection,
+  deleteEditorNode,
   findInsertionParent,
   insertComponent,
   moveEditorNode,
-  removeEditorNode,
   updateNodeProps,
   updateNodeStyle,
 } from './commands';
@@ -109,12 +109,20 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
     replaceDocument(updateNodeStyle(state.document, selectedNode.id, state.device, patch));
   };
 
+  const handleDeleteNode = React.useCallback((nodeId: string) => {
+    const result = deleteEditorNode(state.document, nodeId);
+    if (!result.deleted) {
+      if (result.reason) message.warning(result.reason);
+      return;
+    }
+    replaceDocument(result.document);
+    dispatch({ type: 'select', nodeId: result.parentId || state.document.id });
+  }, [state.document]);
+
   const handleDelete = React.useCallback(() => {
-    if (!selectedNode || selectedNode.id === state.document.id) return;
-    const parentId = getParentNode(state.document, selectedNode.id)?.id || state.document.id;
-    replaceDocument(removeEditorNode(state.document, selectedNode.id));
-    dispatch({ type: 'select', nodeId: parentId });
-  }, [selectedNode, state.document]);
+    if (!selectedNode) return;
+    handleDeleteNode(selectedNode.id);
+  }, [handleDeleteNode, selectedNode]);
 
   const handleConvertLegacySection = React.useCallback(() => {
     if (!selectedNode || selectedNode.type !== 'wb.section') return;
@@ -194,7 +202,7 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
           selectedNodeId={state.selectedNodeId}
           dragSource={state.dragging}
           onSelect={(nodeId) => dispatch({ type: 'select', nodeId })}
-          onDeleteSelected={selectedNode && selectedNode.id !== state.document.id ? handleDelete : undefined}
+          onDeleteNode={handleDeleteNode}
           onDragStart={(source) => dispatch({ type: 'set-dragging', source })}
           onDragEnd={() => dispatch({ type: 'clear-drag' })}
           onDropTargetChange={(target) => dispatch({ type: 'set-drop-target', target })}
