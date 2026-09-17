@@ -4,7 +4,7 @@ import type { WebsiteNode } from '../../../shared/schema';
 import { findNode, findNodeLocation, getAncestorIds } from '../../../shared/tree';
 import { componentRegistry } from '../../registry';
 import type { DragSource, DropTarget } from '../dnd';
-import { writeDragSource } from '../dnd';
+import { resolveLayerTreeDropTarget, writeDragSource } from '../dnd';
 
 export interface LayerPanelProps {
   document: WebsiteNode;
@@ -90,26 +90,16 @@ export function LayerPanel({
           const location = findNodeLocation(document, anchorId);
           if (!anchor || !location) return;
 
-          let target: DropTarget | undefined;
-          if (!info.dropToGap) {
-            target = {
-              parentId: anchorId,
-              index: anchor.children.length,
-              position: 'inside',
-              anchorNodeId: anchorId,
-            };
-          } else if (location.parentId) {
-            const positionParts = String(info.node.pos).split('-');
-            const anchorPosition = Number(positionParts[positionParts.length - 1]);
-            const relativePosition = info.dropPosition - anchorPosition;
-            const after = relativePosition > 0;
-            target = {
-              parentId: location.parentId,
-              index: location.index + (after ? 1 : 0),
-              position: after ? 'after' : 'before',
-              anchorNodeId: anchorId,
-            };
-          }
+          const positionParts = String(info.node.pos).split('-');
+          const anchorPosition = Number(positionParts[positionParts.length - 1]);
+          const target = resolveLayerTreeDropTarget({
+            anchorNodeId: anchorId,
+            parentId: location.parentId,
+            index: location.index,
+            childCount: anchor.children.length,
+            dropToGap: info.dropToGap,
+            relativePosition: info.dropPosition - anchorPosition,
+          });
 
           if (target) onMoveNode?.(nodeId, target);
           onDragEnd?.();
