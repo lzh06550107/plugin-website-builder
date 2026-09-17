@@ -10,8 +10,8 @@ export interface EditorChromeOptions {
 const EMPTY_LAYOUT_MIN_HEIGHT: Record<string, string> = {
   'wb.page': '640px',
   'wb.section': '160px',
-  'wb.container': '96px',
-  'wb.grid': '96px',
+  'wb.container': '160px',
+  'wb.grid': '120px',
 };
 
 function hasMinHeight(style: ResolvedWebsiteStyle) {
@@ -37,24 +37,21 @@ export function resolveEditorChromeStyle(
     style.minHeight = EMPTY_LAYOUT_MIN_HEIGHT[node.type] || '80px';
   }
 
-  if (options.selected) {
-    style.outline = '2px solid #1677ff';
-    style.outlineOffset = '-2px';
-  }
-
+  // Selection is expressed by the layers tree/property panel. Do not draw a solid
+  // outline around the authored page node because it looks like real page content.
   return style;
 }
 
 export function getEmptyNodeHint(type: string) {
   switch (type) {
     case 'wb.page':
-      return '空页面 · 从左侧添加 Section';
+      return '空页面 · 先添加 Container';
     case 'wb.section':
-      return '空 Section · 从左侧添加 Container、Grid 或内容组件';
+      return '兼容 Section · 添加 Container';
     case 'wb.container':
-      return '空 Container · 从左侧添加组件';
+      return '空 Container · 添加 Grid';
     case 'wb.grid':
-      return '空 Grid · 从左侧添加组件';
+      return '空 Grid · 添加 Heading、Text、Image 或 Button';
     default:
       return '从左侧添加组件';
   }
