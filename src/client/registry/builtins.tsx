@@ -184,14 +184,51 @@ const Text = (props: WebsiteComponentRenderProps) => {
   );
 };
 
-const Image = (props: WebsiteComponentRenderProps) => (
-  <img {...frameProps(props)} src={String(props.node.props.src || '')} alt={String(props.node.props.alt || '')} />
-);
-const Button = (props: WebsiteComponentRenderProps) => (
-  <a {...frameProps(props)} href={String(props.node.props.href || '#')}>
-    {String(props.node.props.text || 'Button')}
-  </a>
-);
+const Image = (props: WebsiteComponentRenderProps) => {
+  const { onInlineImageEditRequest } = useWebsiteEditorInteractions();
+  const canEdit = Boolean(props.onSelect && onInlineImageEditRequest);
+  return (
+    <img
+      {...frameProps(props)}
+      src={String(props.node.props.src || '')}
+      alt={String(props.node.props.alt || '')}
+      onDoubleClick={(event) => {
+        if (!canEdit) return;
+        event.preventDefault();
+        event.stopPropagation();
+        props.onSelect?.(props.node.id);
+        onInlineImageEditRequest?.(props.node.id);
+      }}
+    />
+  );
+};
+
+const Button = (props: WebsiteComponentRenderProps) => {
+  const inline = useInlineTextEditing(props);
+  if (inline.editing) {
+    return (
+      <span {...frameProps(props, false)} onDoubleClick={inline.startEditing}>
+        <InlineTextInput
+          value={inline.draft}
+          multiline={false}
+          onChange={inline.setDraft}
+          onCommit={inline.commit}
+          onCancel={inline.cancel}
+        />
+      </span>
+    );
+  }
+
+  return (
+    <a
+      {...frameProps(props)}
+      href={String(props.node.props.href || '#')}
+      onDoubleClick={inline.startEditing}
+    >
+      {String(props.node.props.text || 'Button')}
+    </a>
+  );
+};
 
 const CONTENT_TYPES = ['wb.heading', 'wb.text', 'wb.image', 'wb.button'];
 
