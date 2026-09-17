@@ -6,7 +6,9 @@ import { findNode } from '../../shared/tree';
 import { componentRegistry } from '../registry';
 import { WebsiteRenderer } from '../renderer';
 import { Canvas } from './canvas/Canvas';
-import { insertComponent, removeEditorNode, updateNodeProps, updateNodeStyle } from './commands';
+import { insertComponent, moveEditorNode, removeEditorNode, updateNodeProps, updateNodeStyle } from './commands';
+import type { DragSource, DropTarget } from './dnd';
+import { validateDropSource } from './dnd';
 import { EditorSidebar } from './panels/EditorSidebar';
 import { PropertyPanel } from './panels/PropertyPanel';
 import { createEditorState, editorReducer } from './state';
@@ -45,6 +47,38 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
     }
     replaceDocument(result.document);
     dispatch({ type: 'select', nodeId: node.id });
+  };
+
+  const handleCanDrop = (source: DragSource, target: DropTarget) =>
+    validateDropSource(state.document, componentRegistry, source, target).valid;
+
+  const handleMoveNode = (nodeId: string, target: DropTarget) => {
+    const result = moveEditorNode(state.document, componentRegistry, nodeId, target.parentId, target.index);
+    if (!result.moved) {
+      if (result.reason && result.reason !== '组件位置没有发生变化') message.warning(result.reason);
+      return;
+    }
+    replaceDocument(result.document);
+    dispatch({ type: 'select', nodeId });
+  };
+
+  const handleDrop = (source: DragSource, target: DropTarget) => {
+    if (source.kind === 'palette') {
+      const node = createNode(source.componentType, nextNodeId(source.componentType));
+      const result = insertComponent(state.document, componentRegistry, undefined, node, {
+        parentId: target.parentId,
+        index: target.index,
+      });
+      if (!result.inserted) {
+        message.warning(result.reason || '无法在这里放置组件');
+        return;
+      }
+      replaceDocument(result.document);
+      dispatch({ type: 'select', nodeId: node.id });
+      return;
+    }
+
+    handleMoveNode(source.nodeId, target);
   };
 
   const handlePropsChange = (patch: Record<string, unknown>) => {
@@ -94,12 +128,21 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
           selectedNodeId={state.selectedNodeId}
           onSelect={(nodeId) => dispatch({ type: 'select', nodeId })}
           onInsert={handleInsert}
+          onDragStart={(source) => dispatch({ type: 'set-dragging', source })}
+          onDragEnd={() => dispatch({ type: 'clear-drag' })}
+          onMoveNode={handleMoveNode}
         />
         <Canvas
           document={state.document}
           device={state.device}
           selectedNodeId={state.selectedNodeId}
+          dragSource={state.dragging}
           onSelect={(nodeId) => dispatch({ type: 'select', nodeId })}
+          onDragStart={(source) => dispatch({ type: 'set-dragging', source })}
+          onDragEnd={() => dispatch({ type: 'clear-drag' })}
+          onDropTargetChange={(target) => dispatch({ type: 'set-drop-target', target })}
+          canDrop={handleCanDrop}
+          onDrop={handleDrop}
         />
         <PropertyPanel
           node={selectedNode}
