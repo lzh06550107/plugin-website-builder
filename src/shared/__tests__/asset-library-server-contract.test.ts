@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-test('wbAssets is a dedicated NocoBase file collection', async () => {
+test('wbAssets is a dedicated NocoBase file collection with standard file fields', async () => {
   let wbAssets: any;
   try {
     const module = await import('../../server/collections/wbAssets');
@@ -12,6 +12,13 @@ test('wbAssets is a dedicated NocoBase file collection', async () => {
   assert.equal(wbAssets.name, 'wbAssets');
   assert.equal(wbAssets.template, 'file');
   assert.equal(wbAssets.title, 'Website Builder Assets');
+
+  const fields = new Map((wbAssets.fields || []).map((field: any) => [field.name, field]));
+  for (const name of ['title', 'filename', 'extname', 'size', 'mimetype', 'path', 'url', 'preview', 'storage', 'meta']) {
+    assert.ok(fields.has(name), `wbAssets must define ${name}`);
+  }
+  assert.equal(fields.get('storage')?.target, 'storages');
+  assert.equal(fields.get('storage')?.foreignKey, 'storageId');
 });
 
 test('website asset file authorizer is narrowly scoped', async () => {
