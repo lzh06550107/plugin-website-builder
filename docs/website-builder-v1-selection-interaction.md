@@ -4,7 +4,7 @@
 
 网页组件存在严格父子层级后，子组件可能完全覆盖父级 Container/Grid 的可点击区域。如果只依赖 Canvas 单击，用户在后续编辑时很难重新选中父级布局节点。
 
-V1 不重新引入实体蓝色选中框，而采用 Canvas、面包屑和图层树三路联动，并把快捷工具条、右键菜单和双击文字编辑作为 Canvas 的主要操作入口。
+V1 不重新引入实体蓝色选中框，而采用 Canvas、面包屑和图层树三路联动，并把快捷工具条、右键菜单和双击直接编辑作为 Canvas 的主要操作入口。
 
 ## 2. 选择入口
 
@@ -13,8 +13,9 @@ V1 不重新引入实体蓝色选中框，而采用 Canvas、面包屑和图层�
 - 单击页面内容时选择鼠标命中的最内层组件。
 - Hover 非 Page 节点时显示轻量淡蓝虚线和组件名称。
 - 右键组件时先精确选中该组件，再打开组件快捷菜单。
-- 双击 Heading / Text 时直接进入文字编辑状态。
-- Hover 虚线、快捷工具条、右键菜单和文字编辑控件都属于 Editor Chrome，不进入 Website Schema，也不出现在 Preview/Published。
+- 双击 Heading / Text / Button 时直接进入文字编辑状态。
+- 双击 Image 时打开“替换图片”对话框。
+- Hover 虚线、快捷工具条、右键菜单和直接编辑控件都属于 Editor Chrome，不进入 Website Schema，也不出现在 Preview/Published。
 
 ### 选择面包屑
 
@@ -99,27 +100,44 @@ responsive.mobile
 
 ## 7. 双击文字编辑
 
-V1 先支持：
+V1 支持：
 
 ```text
 wb.heading
 wb.text
+wb.button
 ```
 
-双击 Heading / Text 后，原组件位置直接切换成输入控件，输入控件继承当前字体、颜色、行高和对齐方式，并临时关闭该节点的 draggable，避免文字编辑和拖拽冲突。
+双击 Heading / Text / Button 后，原组件位置直接切换成输入控件，输入控件继承当前字体、颜色、行高和对齐方式，并临时关闭该节点的 draggable，避免文字编辑和拖拽冲突。
 
 提交规则：
 
 - Heading：`Enter` 提交；
+- Button：`Enter` 提交；
 - Text：普通 `Enter` 换行，`Ctrl+Enter` / `Cmd+Enter` 提交；
-- Heading / Text：失焦提交；
-- Heading / Text：`Esc` 取消并恢复原文字。
+- Heading / Text / Button：失焦提交；
+- Heading / Text / Button：`Esc` 取消并恢复原文字。
 
-提交只更新目标节点的 `props.text`，必须保留 `id / type / style / responsive / children` 以及 Heading 的 `level` 等其他 props。
+提交只更新目标节点的 `props.text`，必须保留 `id / type / style / responsive / children` 以及 Heading 的 `level`、Button 的 `href` 等其他 props。
 
-文字更新统一通过 Editor Command `updateInlineText()`，目前 Button / Image 不允许通过此命令进行双击文字编辑。编辑器通过轻量 `WebsiteEditorInteractionsProvider` 向编辑态组件提供提交回调；Preview/Published 不提供该 Context，因此不会进入可编辑状态。
+文字更新统一通过 Editor Command `updateInlineText()`。编辑器通过轻量 `WebsiteEditorInteractionsProvider` 向编辑态组件提供提交回调；Preview/Published 不提供该 Context，因此不会进入可编辑状态。
 
-## 8. 删除
+## 8. 双击图片替换
+
+双击 `wb.image` 后打开“替换图片”对话框，当前 V1 复用已经存在的图片属性能力：
+
+```text
+图片 URL
+Alt
+```
+
+点击“应用”后统一通过 Editor Command `updateInlineImage()` 更新目标 Image 的 `props.src / props.alt`，并保留节点的其他 props、style、responsive、id 和层级。
+
+当前这一小步**没有新增文件上传或媒体库子系统**。也就是说，双击图片的快速替换面板目前与右侧属性面板一样使用 URL；后续如果接入 NocoBase File Manager / 媒体库，只需要把 URL 输入控件替换成统一资源选择器，不需要修改 Website Schema。
+
+Preview/Published 不提供 `onInlineImageEditRequest`，所以双击图片不会打开编辑对话框。
+
+## 9. 删除
 
 非 Page 节点支持多个删除入口：
 
@@ -131,13 +149,13 @@ wb.text
 
 这些入口最终走同一个 nodeId 定向删除命令，删除后自动选择父节点。
 
-## 9. 自动定位
+## 10. 自动定位
 
 从图层树或面包屑选择节点后，Canvas 根据节点的 `data-wb-node-id` 查找真实渲染元素并执行 `scrollIntoView({ block: 'nearest', inline: 'nearest' })`。
 
 自动定位只影响编辑器滚动位置，不修改 Schema。
 
-## 10. 验收
+## 11. 验收
 
 ```text
 Page
@@ -145,8 +163,8 @@ Page
    └─ Grid
       ├─ Heading
       ├─ Text
-      ├─ Button A
-      └─ Button B
+      ├─ Image
+      └─ Button
 ```
 
 验收重点：
@@ -157,9 +175,11 @@ Page
 4. 再次双击 Heading 修改文字后按 Esc，原文字保持不变。
 5. 双击 Text 后出现多行输入框；普通 Enter 可以换行，Ctrl/Cmd+Enter 提交。
 6. Text 编辑时点击其他区域，失焦后提交。
-7. 双击 Button / Image 不进入文字编辑状态。
-8. 文字编辑期间 Delete / Backspace 只能编辑输入内容，不能删除组件。
-9. 从快捷工具条拖动组件时仍受合法父子层级约束。
-10. 点击“更多”打开与右键相同的菜单。
-11. 右键菜单中的上移/下移、复制样式/粘贴样式继续正常工作。
-12. Preview 中不能双击编辑 Heading/Text，也不出现面包屑、Hover Outline、快捷工具条、Context Menu、Drop Indicator 或其他 Editor Chrome。
+7. 双击 Button 后出现单行输入框；修改后按 Enter，按钮文字更新但 href 不变。
+8. 双击 Image 后出现“替换图片”对话框；修改 URL / Alt 并应用后图片更新。
+9. Image 快速替换不得修改 style、responsive 或其他自定义 props。
+10. 文字编辑期间 Delete / Backspace 只能编辑输入内容，不能删除组件。
+11. 从快捷工具条拖动组件时仍受合法父子层级约束。
+12. 点击“更多”打开与右键相同的菜单。
+13. 右键菜单中的上移/下移、复制样式/粘贴样式继续正常工作。
+14. Preview 中不能双击编辑 Heading/Text/Button，也不能双击 Image 打开替换面板；同时不出现面包屑、Hover Outline、快捷工具条、Context Menu、Drop Indicator 或其他 Editor Chrome。
