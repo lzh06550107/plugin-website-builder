@@ -45,7 +45,9 @@ export function reduceWebsiteAssetPickerState(
 }
 
 export function buildAssetApplyValue(state: WebsiteAssetPickerState): { src: string; alt: string } | null {
-  const src = state.mode === 'url' ? state.url.trim() : state.selected?.url?.trim();
+  const src = state.mode === 'url'
+    ? state.url.trim()
+    : state.selected?.url?.trim() || state.url.trim();
   if (!src) return null;
   return { src, alt: state.alt };
 }
