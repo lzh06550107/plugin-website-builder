@@ -10,6 +10,7 @@ export interface EditorSidebarProps {
   selectedNodeId?: string;
   onSelect: (nodeId: string) => void;
   onInsert: (type: string) => void;
+  canInsert?: (type: string) => boolean;
   onDragStart?: (source: DragSource) => void;
   onDragEnd?: () => void;
   onMoveNode?: (nodeId: string, target: DropTarget) => void;
@@ -29,6 +30,7 @@ export function EditorSidebar(props: EditorSidebarProps) {
             children: (
               <ComponentPanel
                 onInsert={props.onInsert}
+                canInsert={props.canInsert}
                 onDragStart={props.onDragStart}
                 onDragEnd={props.onDragEnd}
               />
