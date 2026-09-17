@@ -6,6 +6,7 @@ export * from './move';
 export * from './validate';
 export * from './migrate';
 export * from './contextActions';
+export * from './inlineText';
 
 function mergeWebsiteStyle(base: Partial<WebsiteStyle> = {}, patch: Partial<WebsiteStyle> = {}): WebsiteStyle {
   return {
