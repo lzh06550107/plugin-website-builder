@@ -8,6 +8,7 @@ export interface PropertyPanelProps {
   onPropsChange: (patch: Record<string, unknown>) => void;
   onStyleChange: (patch: Partial<WebsiteStyle>) => void;
   onDelete: () => void;
+  onConvertLegacySection?: () => void;
 }
 
 function textValue(value: unknown) {
@@ -44,7 +45,14 @@ function SpacingGrid(props: {
   );
 }
 
-export function PropertyPanel({ node, device, onPropsChange, onStyleChange, onDelete }: PropertyPanelProps) {
+export function PropertyPanel({
+  node,
+  device,
+  onPropsChange,
+  onStyleChange,
+  onDelete,
+  onConvertLegacySection,
+}: PropertyPanelProps) {
   if (!node) return <div style={{ width: 320, padding: 16 }}>请选择组件</div>;
   const style = node.responsive?.[device] || {};
   const typography = style.typography || {};
@@ -53,6 +61,7 @@ export function PropertyPanel({ node, device, onPropsChange, onStyleChange, onDe
   const isFlex = layout.display === 'flex';
   const isGrid = layout.display === 'grid' || node.type === 'wb.grid';
   const canDelete = node.type !== 'wb.page';
+  const isLegacySection = node.type === 'wb.section';
 
   return (
     <div style={{ width: 320, flex: '0 0 320px', padding: 16, overflow: 'auto', borderLeft: '1px solid #eee' }}>
@@ -72,6 +81,27 @@ export function PropertyPanel({ node, device, onPropsChange, onStyleChange, onDe
           可点击“删除”或按 Delete / Backspace
         </Typography.Text>
       )}
+
+      {isLegacySection && onConvertLegacySection && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 12,
+            border: '1px solid #ffe58f',
+            borderRadius: 6,
+            background: '#fffbe6',
+          }}
+        >
+          <Typography.Text strong>旧版 Section 兼容节点</Typography.Text>
+          <Typography.Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+            新页面使用 Page → Container → Grid → 内容。可将该 Section 显式转换为新结构，保存草稿前不会写入数据库。
+          </Typography.Text>
+          <Button block style={{ marginTop: 10 }} onClick={onConvertLegacySection}>
+            转换为新结构
+          </Button>
+        </div>
+      )}
+
       <Divider />
       {(node.type === 'wb.heading' || node.type === 'wb.text' || node.type === 'wb.button') && (
         <Space direction="vertical" style={{ width: '100%' }}>
