@@ -1,5 +1,5 @@
 import type { DeviceType, WebsiteNode, WebsiteStyle } from '../../../shared/schema';
-import { insertNode, removeNode, updateNode } from '../../../shared/tree';
+import { findNodeLocation, insertNode, removeNode, updateNode } from '../../../shared/tree';
 
 export * from './insert';
 export * from './move';
@@ -23,6 +23,28 @@ export function insertChild(document: WebsiteNode, parentId: string, child: Webs
 export function removeEditorNode(document: WebsiteNode, nodeId: string) {
   if (document.id === nodeId) return document;
   return removeNode(document, nodeId);
+}
+
+export function deleteEditorNode(document: WebsiteNode, nodeId: string) {
+  if (document.id === nodeId) {
+    return { document, deleted: false, reason: '根页面不能删除' };
+  }
+
+  const location = findNodeLocation(document, nodeId);
+  if (!location?.parentId) {
+    return { document, deleted: false, reason: '找不到要删除的组件' };
+  }
+
+  const nextDocument = removeNode(document, nodeId);
+  if (nextDocument === document) {
+    return { document, deleted: false, reason: '组件没有被删除' };
+  }
+
+  return {
+    document: nextDocument,
+    deleted: true,
+    parentId: location.parentId,
+  };
 }
 
 export function updateNodeProps(document: WebsiteNode, nodeId: string, patch: Record<string, unknown>) {
