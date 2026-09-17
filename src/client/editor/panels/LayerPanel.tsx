@@ -1,13 +1,18 @@
 import React from 'react';
 import { Tree, Typography } from 'antd';
 import type { WebsiteNode } from '../../../shared/schema';
-import { getAncestorIds } from '../../../shared/tree';
+import { findNode, findNodeLocation, getAncestorIds } from '../../../shared/tree';
 import { componentRegistry } from '../../registry';
+import type { DragSource, DropTarget } from '../dnd';
+import { writeDragSource } from '../dnd';
 
 export interface LayerPanelProps {
   document: WebsiteNode;
   selectedNodeId?: string;
   onSelect: (nodeId: string) => void;
+  onDragStart?: (source: DragSource) => void;
+  onDragEnd?: () => void;
+  onMoveNode?: (nodeId: string, target: DropTarget) => void;
 }
 
 interface LayerTreeItem {
@@ -31,7 +36,14 @@ function toTreeItem(node: WebsiteNode): LayerTreeItem {
   };
 }
 
-export function LayerPanel({ document, selectedNodeId, onSelect }: LayerPanelProps) {
+export function LayerPanel({
+  document,
+  selectedNodeId,
+  onSelect,
+  onDragStart,
+  onDragEnd,
+  onMoveNode,
+}: LayerPanelProps) {
   const [expandedKeys, setExpandedKeys] = React.useState<React.Key[]>([document.id]);
 
   React.useEffect(() => {
@@ -48,6 +60,10 @@ export function LayerPanel({ document, selectedNodeId, onSelect }: LayerPanelPro
       <Tree
         blockNode
         showLine={{ showLeafIcon: false }}
+        draggable={{
+          icon: false,
+          nodeDraggable: (node) => String(node.key) !== document.id,
+        }}
         treeData={[toTreeItem(document)]}
         selectedKeys={selectedNodeId ? [selectedNodeId] : []}
         expandedKeys={expandedKeys}
@@ -55,6 +71,48 @@ export function LayerPanel({ document, selectedNodeId, onSelect }: LayerPanelPro
         onSelect={(keys) => {
           const key = keys[0];
           if (key !== undefined) onSelect(String(key));
+        }}
+        onDragStart={(info) => {
+          const nodeId = String(info.node.key);
+          if (nodeId === document.id) return;
+          const source: DragSource = { kind: 'node', nodeId };
+          writeDragSource(info.event.dataTransfer, source);
+          onSelect(nodeId);
+          onDragStart?.(source);
+        }}
+        onDragEnd={() => onDragEnd?.()}
+        onDrop={(info) => {
+          const nodeId = String(info.dragNode.key);
+          if (nodeId === document.id) return;
+
+          const anchorId = String(info.node.key);
+          const anchor = findNode(document, anchorId);
+          const location = findNodeLocation(document, anchorId);
+          if (!anchor || !location) return;
+
+          let target: DropTarget | undefined;
+          if (!info.dropToGap) {
+            target = {
+              parentId: anchorId,
+              index: anchor.children.length,
+              position: 'inside',
+              anchorNodeId: anchorId,
+            };
+          } else if (location.parentId) {
+            const positionParts = String(info.node.pos).split('-');
+            const anchorPosition = Number(positionParts[positionParts.length - 1]);
+            const relativePosition = info.dropPosition - anchorPosition;
+            const after = relativePosition > 0;
+            target = {
+              parentId: location.parentId,
+              index: location.index + (after ? 1 : 0),
+              position: after ? 'after' : 'before',
+              anchorNodeId: anchorId,
+            };
+          }
+
+          if (target) onMoveNode?.(nodeId, target);
+          onDragEnd?.();
         }}
       />
     </div>
