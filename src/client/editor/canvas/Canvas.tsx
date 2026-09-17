@@ -6,6 +6,7 @@ import { componentRegistry } from '../../registry';
 import { WebsiteRenderer } from '../../renderer';
 import type { DragSource, DropTarget } from '../dnd';
 import { readDragSource, resolveDropTarget, writeDragSource } from '../dnd';
+import { resolveSelectionToolbarPlacement } from './selectionToolbar';
 
 export interface CanvasProps {
   document: WebsiteNode;
@@ -51,6 +52,17 @@ interface CanvasContextMenu {
   y: number;
 }
 
+interface SelectionToolbarChrome {
+  nodeId: string;
+  label: string;
+  left: number;
+  top: number;
+  side: 'above' | 'below';
+}
+
+const SELECTION_TOOLBAR_WIDTH = 244;
+const SELECTION_TOOLBAR_HEIGHT = 32;
+
 function closestNodeElement(target: EventTarget | null): HTMLElement | undefined {
   if (!(target instanceof Element)) return undefined;
   return target.closest<HTMLElement>('[data-wb-node-id]') || undefined;
@@ -75,6 +87,7 @@ export function Canvas(props: CanvasProps) {
   const [indicator, setIndicator] = React.useState<DropIndicator>();
   const [hoverOutline, setHoverOutline] = React.useState<HoverOutline>();
   const [contextMenu, setContextMenu] = React.useState<CanvasContextMenu>();
+  const [selectionToolbar, setSelectionToolbar] = React.useState<SelectionToolbarChrome>();
   const selectionPath = React.useMemo(
     () => getNodePath(document, selectedNodeId || document.id),
     [document, selectedNodeId],
@@ -83,6 +96,56 @@ export function Canvas(props: CanvasProps) {
     () => (contextMenu ? findNodeLocation(document, contextMenu.nodeId) : undefined),
     [contextMenu, document],
   );
+
+  const updateSelectionToolbar = React.useCallback(() => {
+    if (!selectedNodeId || selectedNodeId === document.id || props.dragSource) {
+      setSelectionToolbar(undefined);
+      return;
+    }
+
+    const frame = frameRef.current;
+    const node = findNode(document, selectedNodeId);
+    if (!frame || !node) {
+      setSelectionToolbar(undefined);
+      return;
+    }
+
+    const element = findNodeElement(frame, selectedNodeId);
+    if (!element) {
+      setSelectionToolbar(undefined);
+      return;
+    }
+
+    const frameRect = frame.getBoundingClientRect();
+    const nodeRect = element.getBoundingClientRect();
+    const placement = resolveSelectionToolbarPlacement(
+      { left: frameRect.left, top: frameRect.top, width: frameRect.width, height: frameRect.height },
+      { left: nodeRect.left, top: nodeRect.top, width: nodeRect.width, height: nodeRect.height },
+      { width: SELECTION_TOOLBAR_WIDTH, height: SELECTION_TOOLBAR_HEIGHT },
+    );
+
+    setSelectionToolbar({
+      nodeId: node.id,
+      label: describeNode(node),
+      ...placement,
+    });
+  }, [document, props.dragSource, selectedNodeId]);
+
+  React.useLayoutEffect(() => {
+    updateSelectionToolbar();
+    window.addEventListener('resize', updateSelectionToolbar);
+
+    const frame = frameRef.current;
+    const element = frame && selectedNodeId ? findNodeElement(frame, selectedNodeId) : undefined;
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateSelectionToolbar) : undefined;
+    if (frame) observer?.observe(frame);
+    if (element) observer?.observe(element);
+
+    return () => {
+      window.removeEventListener('resize', updateSelectionToolbar);
+      observer?.disconnect();
+    };
+  }, [device, selectedNodeId, updateSelectionToolbar]);
 
   React.useEffect(() => {
     if (!selectedNodeId || selectedNodeId === document.id) return;
@@ -199,21 +262,25 @@ export function Canvas(props: CanvasProps) {
     props.onDropTargetChange?.(undefined);
   }, [props.onDropTargetChange]);
 
-  const openContextMenu = React.useCallback((event: React.MouseEvent) => {
-    const element = closestNodeElement(event.target);
-    const nodeId = element?.dataset.wbNodeId || document.id;
+  const showContextMenuForNode = React.useCallback((nodeId: string, x: number, y: number) => {
     const node = findNode(document, nodeId) || document;
-    event.preventDefault();
-    event.stopPropagation();
     setHoverOutline(undefined);
     onSelect(node.id);
     setContextMenu({
       nodeId: node.id,
       label: describeNode(node),
-      x: event.clientX,
-      y: event.clientY,
+      x,
+      y,
     });
   }, [document, onSelect]);
+
+  const openContextMenu = React.useCallback((event: React.MouseEvent) => {
+    const element = closestNodeElement(event.target);
+    const nodeId = element?.dataset.wbNodeId || document.id;
+    event.preventDefault();
+    event.stopPropagation();
+    showContextMenuForNode(nodeId, event.clientX, event.clientY);
+  }, [document.id, showContextMenuForNode]);
 
   const selectedIsRoot = !selectedNodeId || selectedNodeId === document.id;
   const contextIsRoot = !contextMenu || contextMenu.nodeId === document.id;
@@ -285,6 +352,7 @@ export function Canvas(props: CanvasProps) {
           onDragStart={(event) => {
             setHoverOutline(undefined);
             setContextMenu(undefined);
+            setSelectionToolbar(undefined);
             const element = closestNodeElement(event.target);
             const nodeId = element?.dataset.wbNodeId;
             if (!nodeId || nodeId === document.id) {
@@ -363,6 +431,84 @@ export function Canvas(props: CanvasProps) {
               >
                 {hoverOutline.label}
               </span>
+            </div>
+          )}
+
+          {selectionToolbar && !indicator && (
+            <div
+              data-wb-selection-toolbar={selectionToolbar.nodeId}
+              title={selectionToolbar.label}
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+              onContextMenu={(event) => event.preventDefault()}
+              style={{
+                position: 'absolute',
+                zIndex: 120,
+                left: selectionToolbar.left,
+                top: selectionToolbar.top,
+                width: SELECTION_TOOLBAR_WIDTH,
+                height: SELECTION_TOOLBAR_HEIGHT,
+                display: 'flex',
+                alignItems: 'center',
+                padding: 2,
+                border: '1px solid #d9d9d9',
+                borderRadius: 6,
+                background: '#fff',
+                boxShadow: '0 4px 14px rgba(0,0,0,.14)',
+              }}
+            >
+              <Button
+                size="small"
+                type="text"
+                draggable
+                style={{ cursor: 'grab', flex: 1 }}
+                onDragStart={(event) => {
+                  event.stopPropagation();
+                  setHoverOutline(undefined);
+                  setContextMenu(undefined);
+                  setSelectionToolbar(undefined);
+                  const source: DragSource = { kind: 'node', nodeId: selectionToolbar.nodeId };
+                  writeDragSource(event.dataTransfer, source);
+                  props.onDragStart?.(source);
+                }}
+                onDragEnd={(event) => {
+                  event.stopPropagation();
+                  props.onDragEnd?.();
+                }}
+              >
+                拖动
+              </Button>
+              <Button
+                size="small"
+                type="text"
+                style={{ flex: 1 }}
+                disabled={!props.onDuplicateNode}
+                onClick={() => props.onDuplicateNode?.(selectionToolbar.nodeId)}
+              >
+                复制
+              </Button>
+              <Button
+                size="small"
+                danger
+                type="text"
+                style={{ flex: 1 }}
+                disabled={!props.onDeleteNode}
+                onClick={() => props.onDeleteNode?.(selectionToolbar.nodeId)}
+              >
+                删除
+              </Button>
+              <Button
+                size="small"
+                type="text"
+                style={{ flex: 1 }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  showContextMenuForNode(selectionToolbar.nodeId, rect.left, rect.bottom + 4);
+                }}
+              >
+                更多
+              </Button>
             </div>
           )}
 
