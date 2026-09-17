@@ -44,6 +44,20 @@ test('normalizeWebsiteAsset rejects non-images and records without a URL', async
   assert.equal(normalizeWebsiteAsset({ id: 4, url: '/unknown' }), null);
 });
 
+test('same-origin uploaded URLs become portable paths while external CDN URLs stay absolute', async () => {
+  const { toPortableWebsiteAssetUrl } = await loadAssetApi();
+  assert.equal(typeof toPortableWebsiteAssetUrl, 'function');
+  assert.equal(
+    toPortableWebsiteAssetUrl('https://cms.example.com/nocobase/files/a.png?preview=1', 'https://cms.example.com'),
+    '/nocobase/files/a.png?preview=1',
+  );
+  assert.equal(
+    toPortableWebsiteAssetUrl('https://cdn.example.com/a.png', 'https://cms.example.com'),
+    'https://cdn.example.com/a.png',
+  );
+  assert.equal(toPortableWebsiteAssetUrl('/files/a.png', 'https://cms.example.com'), '/files/a.png');
+});
+
 test('listWebsiteAssets queries wbAssets with image filtering, search, pagination and newest-first sorting', async () => {
   const { listWebsiteAssets } = await loadAssetApi();
   let params: any;
