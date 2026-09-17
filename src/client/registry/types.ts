@@ -15,5 +15,7 @@ export interface WebsiteComponentDefinition {
   label: string;
   category: 'layout' | 'content';
   acceptsChildren: boolean;
+  allowedChildTypes?: string[];
+  canContain?: (childType: string) => boolean;
   render: React.ComponentType<WebsiteComponentRenderProps>;
 }

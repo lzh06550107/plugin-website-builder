@@ -18,4 +18,13 @@ export class ComponentRegistry {
   list() {
     return Array.from(this.definitions.values());
   }
+
+  canContain(parentType: string, childType: string) {
+    const parent = this.get(parentType);
+    const child = this.get(childType);
+    if (!parent || !child || !parent.acceptsChildren) return false;
+    if (parent.canContain) return parent.canContain(childType);
+    if (parent.allowedChildTypes) return parent.allowedChildTypes.includes(childType);
+    return true;
+  }
 }

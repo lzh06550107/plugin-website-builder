@@ -41,11 +41,41 @@ const Button = (props: WebsiteComponentRenderProps) => (
   </a>
 );
 
+const CONTENT_TYPES = ['wb.heading', 'wb.text', 'wb.image', 'wb.button'];
+
 export const builtinComponentDefinitions: WebsiteComponentDefinition[] = [
-  { type: 'wb.page', label: 'Page', category: 'layout', acceptsChildren: true, render: Page },
-  { type: 'wb.section', label: 'Section', category: 'layout', acceptsChildren: true, render: Section },
-  { type: 'wb.container', label: 'Container', category: 'layout', acceptsChildren: true, render: Container },
-  { type: 'wb.grid', label: 'Grid', category: 'layout', acceptsChildren: true, render: Grid },
+  {
+    type: 'wb.page',
+    label: 'Page',
+    category: 'layout',
+    acceptsChildren: true,
+    allowedChildTypes: ['wb.section'],
+    render: Page,
+  },
+  {
+    type: 'wb.section',
+    label: 'Section',
+    category: 'layout',
+    acceptsChildren: true,
+    allowedChildTypes: ['wb.container', 'wb.grid', ...CONTENT_TYPES],
+    render: Section,
+  },
+  {
+    type: 'wb.container',
+    label: 'Container',
+    category: 'layout',
+    acceptsChildren: true,
+    allowedChildTypes: ['wb.grid', ...CONTENT_TYPES],
+    render: Container,
+  },
+  {
+    type: 'wb.grid',
+    label: 'Grid',
+    category: 'layout',
+    acceptsChildren: true,
+    allowedChildTypes: ['wb.container', ...CONTENT_TYPES],
+    render: Grid,
+  },
   { type: 'wb.heading', label: 'Heading', category: 'content', acceptsChildren: false, render: Heading },
   { type: 'wb.text', label: 'Text', category: 'content', acceptsChildren: false, render: Text },
   { type: 'wb.image', label: 'Image', category: 'content', acceptsChildren: false, render: Image },
