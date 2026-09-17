@@ -57,6 +57,12 @@ test('reorders forward and backward', () => {
   assert.deepEqual(findNode(backward, 'section-2')?.children.map((node) => node.id), ['a', 'b', 'c']);
 });
 
+test('same-position reorder and move preserve root identity', () => {
+  const root = fixture();
+  assert.equal(reorderNode(root, 'container-1', 0, 0), root);
+  assert.equal(moveNode(root, 'heading-1', 'container-1', 0), root);
+});
+
 test('moves across parents and preserves subtree', () => {
   const root = fixture();
   const moved = moveNode(root, 'container-1', 'section-2', 0);
