@@ -9,9 +9,11 @@ import { Canvas } from './canvas/Canvas';
 import {
   convertLegacySection,
   deleteEditorNode,
+  duplicateEditorNode,
   findInsertionParent,
   insertComponent,
   moveEditorNode,
+  moveEditorNodeRelative,
   updateNodeProps,
   updateNodeStyle,
 } from './commands';
@@ -119,6 +121,26 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
     dispatch({ type: 'select', nodeId: result.parentId || state.document.id });
   }, [state.document]);
 
+  const handleDuplicateNode = React.useCallback((nodeId: string) => {
+    const result = duplicateEditorNode(state.document, nodeId, (node) => nextNodeId(node.type));
+    if (!result.duplicated) {
+      if (result.reason) message.warning(result.reason);
+      return;
+    }
+    replaceDocument(result.document);
+    dispatch({ type: 'select', nodeId: result.nodeId || nodeId });
+  }, [state.document]);
+
+  const handleMoveNodeRelative = React.useCallback((nodeId: string, direction: 'up' | 'down') => {
+    const result = moveEditorNodeRelative(state.document, nodeId, direction);
+    if (!result.moved) {
+      if (result.reason && !result.reason.startsWith('已经是')) message.warning(result.reason);
+      return;
+    }
+    replaceDocument(result.document);
+    dispatch({ type: 'select', nodeId });
+  }, [state.document]);
+
   const handleDelete = React.useCallback(() => {
     if (!selectedNode) return;
     handleDeleteNode(selectedNode.id);
@@ -203,6 +225,8 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
           dragSource={state.dragging}
           onSelect={(nodeId) => dispatch({ type: 'select', nodeId })}
           onDeleteNode={handleDeleteNode}
+          onDuplicateNode={handleDuplicateNode}
+          onMoveNodeRelative={handleMoveNodeRelative}
           onDragStart={(source) => dispatch({ type: 'set-dragging', source })}
           onDragEnd={() => dispatch({ type: 'clear-drag' })}
           onDropTargetChange={(target) => dispatch({ type: 'set-drop-target', target })}
