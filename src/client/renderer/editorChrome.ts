@@ -47,7 +47,7 @@ export function getEmptyNodeHint(type: string) {
     case 'wb.page':
       return '空页面 · 先添加 Container';
     case 'wb.section':
-      return '兼容 Section · 添加 Container';
+      return '旧版 Section · 请在右侧转换为新结构';
     case 'wb.container':
       return '空 Container · 添加 Grid';
     case 'wb.grid':
