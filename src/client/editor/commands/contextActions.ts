@@ -1,5 +1,5 @@
-import type { WebsiteNode, WebsiteStyle } from '../../../shared/schema';
-import { findNode, findNodeLocation, insertNodeAt, reorderNode } from '../../../shared/tree';
+import type { ResponsiveStyle, WebsiteNode, WebsiteStyle } from '../../../shared/schema';
+import { findNode, findNodeLocation, insertNodeAt, reorderNode, updateNode } from '../../../shared/tree';
 
 export type RelativeMoveDirection = 'up' | 'down';
 export type NodeIdFactory = (node: WebsiteNode) => string;
@@ -20,6 +20,26 @@ export interface RelativeMoveResult {
   reason?: string;
 }
 
+export interface WebsiteNodeStyleClipboard {
+  sourceNodeId: string;
+  sourceType: string;
+  style: WebsiteStyle;
+  responsive?: ResponsiveStyle;
+}
+
+export interface CopyEditorNodeStyleResult {
+  copied: boolean;
+  clipboard?: WebsiteNodeStyleClipboard;
+  reason?: string;
+}
+
+export interface PasteEditorNodeStyleResult {
+  document: WebsiteNode;
+  pasted: boolean;
+  nodeId?: string;
+  reason?: string;
+}
+
 function cloneStyle(style: WebsiteStyle = {}): WebsiteStyle {
   return {
     layout: style.layout ? { ...style.layout } : undefined,
@@ -27,6 +47,14 @@ function cloneStyle(style: WebsiteStyle = {}): WebsiteStyle {
     typography: style.typography ? { ...style.typography } : undefined,
     background: style.background ? { ...style.background } : undefined,
     border: style.border ? { ...style.border } : undefined,
+  };
+}
+
+function cloneResponsive(responsive?: ResponsiveStyle): ResponsiveStyle | undefined {
+  if (!responsive) return undefined;
+  return {
+    desktop: responsive.desktop ? cloneStyle(responsive.desktop) : undefined,
+    mobile: responsive.mobile ? cloneStyle(responsive.mobile) : undefined,
   };
 }
 
@@ -40,12 +68,7 @@ function cloneNode(node: WebsiteNode, idFactory: NodeIdFactory, usedIds: Set<str
     id,
     props: { ...node.props },
     style: cloneStyle(node.style),
-    responsive: node.responsive
-      ? {
-          desktop: node.responsive.desktop ? cloneStyle(node.responsive.desktop) : undefined,
-          mobile: node.responsive.mobile ? cloneStyle(node.responsive.mobile) : undefined,
-        }
-      : undefined,
+    responsive: cloneResponsive(node.responsive),
     children: node.children.map((child) => cloneNode(child, idFactory, usedIds)),
   };
 }
@@ -132,4 +155,41 @@ export function getSiblingMoveAvailability(document: WebsiteNode, nodeId: string
 
 export function canDuplicateEditorNode(document: WebsiteNode, nodeId: string) {
   return nodeId !== document.id && Boolean(findNode(document, nodeId));
+}
+
+export function copyEditorNodeStyle(document: WebsiteNode, nodeId: string): CopyEditorNodeStyleResult {
+  const node = findNode(document, nodeId);
+  if (!node) return { copied: false, reason: '找不到要复制样式的组件' };
+
+  return {
+    copied: true,
+    clipboard: {
+      sourceNodeId: node.id,
+      sourceType: node.type,
+      style: cloneStyle(node.style),
+      responsive: cloneResponsive(node.responsive),
+    },
+  };
+}
+
+export function pasteEditorNodeStyle(
+  document: WebsiteNode,
+  nodeId: string,
+  clipboard: WebsiteNodeStyleClipboard,
+): PasteEditorNodeStyleResult {
+  if (!findNode(document, nodeId)) {
+    return { document, pasted: false, reason: '找不到要粘贴样式的组件' };
+  }
+
+  const nextDocument = updateNode(document, nodeId, (node) => ({
+    ...node,
+    style: cloneStyle(clipboard.style),
+    responsive: cloneResponsive(clipboard.responsive),
+  }));
+
+  return {
+    document: nextDocument,
+    pasted: true,
+    nodeId,
+  };
 }
