@@ -1,5 +1,5 @@
 import React, { useMemo, useReducer } from 'react';
-import { message, Modal } from 'antd';
+import { Input, message, Modal, Space } from 'antd';
 import type { WebsiteNode, WebsiteStyle } from '../../shared/schema';
 import { createNode } from '../../shared/schema';
 import { findNode } from '../../shared/tree';
@@ -17,6 +17,7 @@ import {
   moveEditorNode,
   moveEditorNodeRelative,
   pasteEditorNodeStyle,
+  updateInlineImage,
   updateInlineText,
   updateNodeProps,
   updateNodeStyle,
@@ -37,6 +38,12 @@ export interface WebsiteEditorProps {
   onPublish?: (document: WebsiteNode) => Promise<void> | void;
 }
 
+interface ImageEditorState {
+  nodeId: string;
+  src: string;
+  alt: string;
+}
+
 let nodeSequence = 0;
 function nextNodeId(type: string) {
   nodeSequence += 1;
@@ -54,6 +61,7 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
   const [state, dispatch] = useReducer(editorReducer, initialDocument, createEditorState);
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [styleClipboard, setStyleClipboard] = React.useState<WebsiteNodeStyleClipboard>();
+  const [imageEditor, setImageEditor] = React.useState<ImageEditorState>();
   const selectedNode = useMemo(
     () => (state.selectedNodeId ? findNode(state.document, state.selectedNodeId) : undefined),
     [state.document, state.selectedNodeId],
@@ -126,6 +134,36 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
     replaceDocument(result.document);
     dispatch({ type: 'select', nodeId });
   }, [state.document]);
+
+  const handleInlineImageEditRequest = React.useCallback((nodeId: string) => {
+    const node = findNode(state.document, nodeId);
+    if (!node || node.type !== 'wb.image') {
+      message.warning('找不到要替换的图片组件');
+      return;
+    }
+    dispatch({ type: 'select', nodeId });
+    setImageEditor({
+      nodeId,
+      src: String(node.props.src ?? ''),
+      alt: String(node.props.alt ?? ''),
+    });
+  }, [state.document]);
+
+  const handleInlineImageApply = React.useCallback(() => {
+    if (!imageEditor) return;
+    const result = updateInlineImage(state.document, imageEditor.nodeId, {
+      src: imageEditor.src,
+      alt: imageEditor.alt,
+    });
+    if (result.updated) {
+      replaceDocument(result.document);
+      dispatch({ type: 'select', nodeId: imageEditor.nodeId });
+    } else if (result.reason && result.reason !== '图片内容没有变化') {
+      message.warning(result.reason);
+      return;
+    }
+    setImageEditor(undefined);
+  }, [imageEditor, state.document]);
 
   const handleDeleteNode = React.useCallback((nodeId: string) => {
     const result = deleteEditorNode(state.document, nodeId);
@@ -261,7 +299,10 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
           onDragEnd={() => dispatch({ type: 'clear-drag' })}
           onMoveNode={handleMoveNode}
         />
-        <WebsiteEditorInteractionsProvider onInlineTextCommit={handleInlineTextCommit}>
+        <WebsiteEditorInteractionsProvider
+          onInlineTextCommit={handleInlineTextCommit}
+          onInlineImageEditRequest={handleInlineImageEditRequest}
+        >
           <Canvas
             document={state.document}
             device={state.device}
@@ -290,6 +331,48 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
           onConvertLegacySection={selectedNode?.type === 'wb.section' ? handleConvertLegacySection : undefined}
         />
       </div>
+
+      <Modal
+        open={Boolean(imageEditor)}
+        title="替换图片"
+        okText="应用"
+        cancelText="取消"
+        onOk={handleInlineImageApply}
+        onCancel={() => setImageEditor(undefined)}
+        destroyOnClose
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <div>
+            <div style={{ marginBottom: 6 }}>图片 URL</div>
+            <Input
+              autoFocus
+              value={imageEditor?.src || ''}
+              placeholder="https://example.com/image.jpg / /uploads/image.jpg"
+              onChange={(event) =>
+                setImageEditor((current) => (current ? { ...current, src: event.target.value } : current))
+              }
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 6 }}>Alt</div>
+            <Input
+              value={imageEditor?.alt || ''}
+              placeholder="图片替代文字"
+              onChange={(event) =>
+                setImageEditor((current) => (current ? { ...current, alt: event.target.value } : current))
+              }
+            />
+          </div>
+          {imageEditor?.src && (
+            <img
+              src={imageEditor.src}
+              alt={imageEditor.alt}
+              style={{ display: 'block', maxWidth: '100%', maxHeight: 240, objectFit: 'contain', border: '1px solid #eee' }}
+            />
+          )}
+        </Space>
+      </Modal>
+
       <Modal
         open={previewOpen}
         title="页面预览"
