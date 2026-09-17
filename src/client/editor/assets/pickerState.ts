@@ -32,7 +32,7 @@ export function reduceWebsiteAssetPickerState(
     case 'reset':
       return createWebsiteAssetPickerState(action.src, action.alt);
     case 'set-mode':
-      return { ...state, mode: action.mode };
+      return action.mode === state.mode ? state : { ...state, mode: action.mode, selected: undefined };
     case 'select-asset':
       return { ...state, mode: action.mode, selected: action.asset };
     case 'set-url':
