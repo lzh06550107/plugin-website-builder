@@ -43,6 +43,15 @@ export function getAncestorIds(root: WebsiteNode, id: string): string[] {
   return [];
 }
 
+export function getNodePath(root: WebsiteNode, id: string): WebsiteNode[] {
+  if (root.id === id) return [root];
+  for (const child of root.children) {
+    const nested = getNodePath(child, id);
+    if (nested.length > 0) return [root, ...nested];
+  }
+  return [];
+}
+
 export function isDescendant(root: WebsiteNode, ancestorId: string, candidateId: string): boolean {
   const ancestor = findNode(root, ancestorId);
   if (!ancestor || ancestorId === candidateId) return false;
