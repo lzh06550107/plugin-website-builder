@@ -5,7 +5,7 @@ function frameProps(props: WebsiteComponentRenderProps) {
   const editing = Boolean(props.onSelect);
   return {
     style: props.style,
-    draggable: editing && props.node.type !== 'wb.page',
+    draggable: editing && props.node.type !== 'wb.page' ? true : undefined,
     'data-wb-node-id': props.node.id,
     'data-wb-node-type': props.node.type,
     onClick: (event: React.MouseEvent) => {
