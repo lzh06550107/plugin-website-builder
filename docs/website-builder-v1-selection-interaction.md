@@ -4,7 +4,7 @@
 
 网页组件存在严格父子层级后，子组件可能完全覆盖父级 Container/Grid 的可点击区域。如果只依赖 Canvas 单击，用户在后续编辑时很难重新选中父级布局节点。
 
-V1 不重新引入实体蓝色选中框，而采用 Canvas、面包屑和图层树三路联动，并把快捷工具条和右键菜单作为 Canvas 的主要操作入口。
+V1 不重新引入实体蓝色选中框，而采用 Canvas、面包屑和图层树三路联动，并把快捷工具条、右键菜单和双击文字编辑作为 Canvas 的主要操作入口。
 
 ## 2. 选择入口
 
@@ -13,7 +13,8 @@ V1 不重新引入实体蓝色选中框，而采用 Canvas、面包屑和图层�
 - 单击页面内容时选择鼠标命中的最内层组件。
 - Hover 非 Page 节点时显示轻量淡蓝虚线和组件名称。
 - 右键组件时先精确选中该组件，再打开组件快捷菜单。
-- Hover 虚线、快捷工具条和右键菜单都属于 Editor Chrome，不进入 Website Schema，也不出现在 Preview/Published。
+- 双击 Heading / Text 时直接进入文字编辑状态。
+- Hover 虚线、快捷工具条、右键菜单和文字编辑控件都属于 Editor Chrome，不进入 Website Schema，也不出现在 Preview/Published。
 
 ### 选择面包屑
 
@@ -96,7 +97,29 @@ responsive.mobile
 
 不会复制 `id / type / props / children`。因此一个 Button 的文字和 href 不会因为粘贴样式而被覆盖。未复制任何样式之前，“粘贴样式”保持禁用。
 
-## 7. 删除
+## 7. 双击文字编辑
+
+V1 先支持：
+
+```text
+wb.heading
+wb.text
+```
+
+双击 Heading / Text 后，原组件位置直接切换成输入控件，输入控件继承当前字体、颜色、行高和对齐方式，并临时关闭该节点的 draggable，避免文字编辑和拖拽冲突。
+
+提交规则：
+
+- Heading：`Enter` 提交；
+- Text：普通 `Enter` 换行，`Ctrl+Enter` / `Cmd+Enter` 提交；
+- Heading / Text：失焦提交；
+- Heading / Text：`Esc` 取消并恢复原文字。
+
+提交只更新目标节点的 `props.text`，必须保留 `id / type / style / responsive / children` 以及 Heading 的 `level` 等其他 props。
+
+文字更新统一通过 Editor Command `updateInlineText()`，目前 Button / Image 不允许通过此命令进行双击文字编辑。编辑器通过轻量 `WebsiteEditorInteractionsProvider` 向编辑态组件提供提交回调；Preview/Published 不提供该 Context，因此不会进入可编辑状态。
+
+## 8. 删除
 
 非 Page 节点支持多个删除入口：
 
@@ -108,13 +131,13 @@ responsive.mobile
 
 这些入口最终走同一个 nodeId 定向删除命令，删除后自动选择父节点。
 
-## 8. 自动定位
+## 9. 自动定位
 
 从图层树或面包屑选择节点后，Canvas 根据节点的 `data-wb-node-id` 查找真实渲染元素并执行 `scrollIntoView({ block: 'nearest', inline: 'nearest' })`。
 
 自动定位只影响编辑器滚动位置，不修改 Schema。
 
-## 9. 验收
+## 10. 验收
 
 ```text
 Page
@@ -130,11 +153,13 @@ Page
 
 1. 点击 Heading 后，Heading 附近出现“拖动 / 复制 / 删除 / 更多”工具条。
 2. 工具条不能出现整块实体 selection outline。
-3. 选中靠近 Canvas 顶部的组件时，工具条自动显示在组件下方。
-4. 选中靠近右边缘的组件时，工具条不能溢出 Canvas。
-5. 点击“复制”后生成完整副本并选中新副本。
-6. 点击“删除”后只删除当前组件并选中父节点。
-7. 从“拖动”按钮拖组件时仍受合法父子层级约束。
-8. 点击“更多”打开与右键相同的菜单。
-9. 右键菜单中的上移/下移、复制样式/粘贴样式继续正常工作。
-10. Preview 中不出现面包屑、Hover Outline、快捷工具条、Context Menu、Drop Indicator 或其他 Editor Chrome。
+3. 双击 Heading 后原位置出现单行输入框；修改后按 Enter，文字更新且 Heading level 不变。
+4. 再次双击 Heading 修改文字后按 Esc，原文字保持不变。
+5. 双击 Text 后出现多行输入框；普通 Enter 可以换行，Ctrl/Cmd+Enter 提交。
+6. Text 编辑时点击其他区域，失焦后提交。
+7. 双击 Button / Image 不进入文字编辑状态。
+8. 文字编辑期间 Delete / Backspace 只能编辑输入内容，不能删除组件。
+9. 从快捷工具条拖动组件时仍受合法父子层级约束。
+10. 点击“更多”打开与右键相同的菜单。
+11. 右键菜单中的上移/下移、复制样式/粘贴样式继续正常工作。
+12. Preview 中不能双击编辑 Heading/Text，也不出现面包屑、Hover Outline、快捷工具条、Context Menu、Drop Indicator 或其他 Editor Chrome。
