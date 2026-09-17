@@ -3,6 +3,7 @@ import { Tree, Typography } from 'antd';
 import type { WebsiteNode } from '../../../shared/schema';
 import { findNode, findNodeLocation, getAncestorIds } from '../../../shared/tree';
 import { componentRegistry } from '../../registry';
+import { validateMove } from '../commands';
 import type { DragSource, DropTarget } from '../dnd';
 import { resolveLayerTreeDropTarget, writeDragSource } from '../dnd';
 
@@ -45,6 +46,7 @@ export function LayerPanel({
   onMoveNode,
 }: LayerPanelProps) {
   const [expandedKeys, setExpandedKeys] = React.useState<React.Key[]>([document.id]);
+  const draggingNodeIdRef = React.useRef<string>();
 
   React.useEffect(() => {
     if (!selectedNodeId) return;
@@ -64,6 +66,16 @@ export function LayerPanel({
           icon: false,
           nodeDraggable: (node) => String(node.key) !== document.id,
         }}
+        allowDrop={({ dropNode, dropPosition }) => {
+          const nodeId = draggingNodeIdRef.current;
+          if (!nodeId) return false;
+          const anchorId = String(dropNode.key);
+          const location = findNodeLocation(document, anchorId);
+          if (!location) return false;
+          const targetParentId = dropPosition === 0 ? anchorId : location.parentId;
+          if (!targetParentId) return false;
+          return validateMove(document, componentRegistry, nodeId, targetParentId).valid;
+        }}
         treeData={[toTreeItem(document)]}
         selectedKeys={selectedNodeId ? [selectedNodeId] : []}
         expandedKeys={expandedKeys}
@@ -75,12 +87,16 @@ export function LayerPanel({
         onDragStart={(info) => {
           const nodeId = String(info.node.key);
           if (nodeId === document.id) return;
+          draggingNodeIdRef.current = nodeId;
           const source: DragSource = { kind: 'node', nodeId };
           writeDragSource(info.event.dataTransfer, source);
           onSelect(nodeId);
           onDragStart?.(source);
         }}
-        onDragEnd={() => onDragEnd?.()}
+        onDragEnd={() => {
+          draggingNodeIdRef.current = undefined;
+          onDragEnd?.();
+        }}
         onDrop={(info) => {
           const nodeId = String(info.dragNode.key);
           if (nodeId === document.id) return;
@@ -102,6 +118,7 @@ export function LayerPanel({
           });
 
           if (target) onMoveNode?.(nodeId, target);
+          draggingNodeIdRef.current = undefined;
           onDragEnd?.();
         }}
       />
