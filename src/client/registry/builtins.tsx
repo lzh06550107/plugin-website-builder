@@ -7,6 +7,7 @@ function frameProps(props: WebsiteComponentRenderProps) {
     'data-wb-node-id': props.node.id,
     'data-wb-node-type': props.node.type,
     onClick: (event: React.MouseEvent) => {
+      if (props.onSelect) event.preventDefault();
       event.stopPropagation();
       props.onSelect?.(props.node.id);
     },
@@ -16,7 +17,16 @@ function frameProps(props: WebsiteComponentRenderProps) {
 const Page = (props: WebsiteComponentRenderProps) => <main {...frameProps(props)}>{props.children}</main>;
 const Section = (props: WebsiteComponentRenderProps) => <section {...frameProps(props)}>{props.children}</section>;
 const Container = (props: WebsiteComponentRenderProps) => <div {...frameProps(props)}>{props.children}</div>;
-const Grid = (props: WebsiteComponentRenderProps) => <div {...frameProps(props)}>{props.children}</div>;
+const Grid = (props: WebsiteComponentRenderProps) => {
+  const columns = Math.max(1, Number(props.node.props.columns || 3));
+  const style: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+    gap: '24px',
+    ...props.style,
+  };
+  return <div {...frameProps({ ...props, style })}>{props.children}</div>;
+};
 const Heading = (props: WebsiteComponentRenderProps) => {
   const level = Math.min(6, Math.max(1, Number(props.node.props.level || 2)));
   return React.createElement(`h${level}`, frameProps(props), String(props.node.props.text || ''));

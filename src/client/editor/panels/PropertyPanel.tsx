@@ -15,9 +15,7 @@ function textValue(value: unknown) {
 }
 
 export function PropertyPanel({ node, device, onPropsChange, onStyleChange, onDelete }: PropertyPanelProps) {
-  if (!node) {
-    return <div style={{ width: 300, padding: 16 }}>请选择组件</div>;
-  }
+  if (!node) return <div style={{ width: 300, padding: 16 }}>请选择组件</div>;
   const style = node.responsive?.[device] || {};
   const typography = style.typography || {};
   const spacing = style.spacing || {};
@@ -38,6 +36,12 @@ export function PropertyPanel({ node, device, onPropsChange, onStyleChange, onDe
         <Space direction="vertical" style={{ width: '100%', marginTop: 12 }}>
           <span>标题级别</span>
           <InputNumber min={1} max={6} value={Number(node.props.level || 2)} onChange={(value) => onPropsChange({ level: value || 2 })} />
+        </Space>
+      )}
+      {node.type === 'wb.grid' && (
+        <Space direction="vertical" style={{ width: '100%', marginTop: 12 }}>
+          <span>列数</span>
+          <InputNumber min={1} max={12} value={Number(node.props.columns || 3)} onChange={(value) => onPropsChange({ columns: value || 1 })} />
         </Space>
       )}
       {node.type === 'wb.image' && (
