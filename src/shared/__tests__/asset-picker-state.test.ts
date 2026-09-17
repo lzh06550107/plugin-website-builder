@@ -61,3 +61,23 @@ test('changing alt remains local until apply', async () => {
   assert.equal(initial.alt, 'Old alt');
   assert.deepEqual(buildAssetApplyValue(state), { src: '/old.png', alt: 'New alt' });
 });
+
+test('reset clears stale selection when the picker opens for another image', async () => {
+  const { createWebsiteAssetPickerState, reduceWebsiteAssetPickerState } = await loadPickerState();
+  const initial = createWebsiteAssetPickerState('/one.png', 'One');
+  const selected = reduceWebsiteAssetPickerState(initial, {
+    type: 'select-asset',
+    mode: 'library',
+    asset: { id: 1, mimetype: 'image/png', url: '/picked.png' },
+  });
+  const reset = reduceWebsiteAssetPickerState(selected, {
+    type: 'reset',
+    src: '/two.png',
+    alt: 'Two',
+  });
+
+  assert.equal(reset.selected, undefined);
+  assert.equal(reset.url, '/two.png');
+  assert.equal(reset.alt, 'Two');
+  assert.equal(reset.mode, 'library');
+});
