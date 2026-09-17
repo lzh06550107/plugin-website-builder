@@ -17,17 +17,7 @@
 
 ## 2. 不在本阶段处理的内容
 
-本阶段不实现：
-
-- Draft / Published 隔离验收。
-- Undo / Redo 完整历史栈。
-- 复制 / 粘贴。
-- 多选节点。
-- Grid 单元格可视化拉伸。
-- 绝对定位自由画布。
-- 自定义断点。
-- 动画时间轴。
-- 第三方组件市场。
+本阶段不实现：Draft / Published 隔离验收、Undo / Redo 完整历史栈、复制 / 粘贴、多选节点、Grid 单元格可视化拉伸、绝对定位自由画布、自定义断点、动画时间轴和第三方组件市场。
 
 这些能力需要建立在稳定的组件树和拖拽协议之上，后续迭代再增加。
 
@@ -51,9 +41,7 @@ Canvas、图层树、选中框、Drop Indicator 都只是编辑器视图，不�
 
 ### 3.2 树操作必须是纯函数
 
-任何节点移动都不能让 React 组件直接修改 `children` 数组。
-
-统一通过：
+任何节点移动都不能让 React 组件直接修改 `children` 数组，而应统一经过：
 
 ```text
 Editor UI
@@ -65,17 +53,11 @@ shared/tree
 new WebsiteNode tree
 ```
 
-这样后续 Undo / Redo、协作编辑、AI 修改页面时都能复用同一套命令。
+这样后续 Undo / Redo、协作编辑和 AI 修改页面时都能复用同一套命令。
 
 ### 3.3 拖拽规则以 Registry 为准
 
-不能在 Canvas 中写大量：
-
-```ts
-if (type === 'wb.section') ...
-```
-
-合法父子关系由 `ComponentRegistry` 定义，Canvas、图层树、点击插入共用同一套规则。
+不能在 Canvas 中散落大量 `if (type === ...)`。合法父子关系由 `ComponentRegistry` 定义，Canvas、图层树、点击插入共用同一套规则。
 
 ## 4. 组件层级规则
 
@@ -109,7 +91,7 @@ wb.section
   └─ 允许：wb.container / wb.grid / 内容组件
 
 wb.container
-  └─ 允许：wb.section / wb.container / wb.grid / 内容组件
+  └─ 允许：wb.grid / 内容组件
 
 wb.grid
   └─ 允许：wb.container / 内容组件
@@ -121,21 +103,16 @@ wb.button
   └─ 不允许 children
 ```
 
-其中 `Page → Section` 作为推荐网页结构约束。内容组件不能成为任何节点的父节点。
+这里刻意不允许 `Section` 嵌套 `Section`，避免 V1 形成不必要的网页结构歧义。`Page → Section → Container/Grid/Content` 是推荐结构，`Container` 与 `Grid` 负责内部排版。
 
-校验统一提供：
+统一提供：
 
 ```ts
 canInsertChild(parentType, childType): boolean
 canMoveNode(document, nodeId, targetParentId): boolean
 ```
 
-还必须阻止：
-
-- Page 被移动。
-- 节点拖入自身。
-- 节点拖入自己的任意 descendant。
-- 违反 Registry 层级约束的移动。
+并必须阻止：Page 被移动、节点拖入自身、节点拖入自己的任意 descendant、违反 Registry 层级约束的移动。
 
 ## 5. 插入模型
 
@@ -147,18 +124,11 @@ canMoveNode(document, nodeId, targetParentId): boolean
 2. 当前选中节点不能容纳：向上寻找最近的合法 ancestor。
 3. 找不到合法 ancestor：不插入，并提示原因。
 
-示例：
-
-```text
-当前选中 Heading
-点击 Text
-```
-
-Heading 不能有 children，因此向上寻找 Container，最终插入为 Heading 的同级节点，而不是错误地塞进 Page 根节点。
+例如当前选中 Heading 后点击 Text，Heading 不能有 children，因此应向上找到最近合法父节点，把 Text 插入为 Heading 的同级节点，而不是错误地塞进 Page 根节点。
 
 ### 5.2 左侧拖入 Canvas
 
-拖拽组件库项时创建的是：
+拖拽组件库项时创建：
 
 ```ts
 DragSource = {
@@ -190,32 +160,13 @@ DropTarget = {
 }
 ```
 
-底层统一转换为：
+最终统一转换为：
 
 ```ts
 moveNode(document, nodeId, targetParentId, targetIndex)
 ```
 
-支持三类操作：
-
-```text
-A. 同父级排序
-Section
-├─ Heading
-├─ Text      ← 拖到 Heading 前
-└─ Button
-
-B. 跨父级移动
-Section A              Section B
-└─ Container           └─ Container
-   └─ Button  ───────────→  Button
-
-C. 拖入空容器
-Section
-└─ Container [空]
-       ↑
-     Image
-```
+支持同父级排序、跨父级移动、拖入空容器三类操作。
 
 ## 7. shared/tree 新能力
 
@@ -231,25 +182,9 @@ moveNode(root, nodeId, targetParentId, targetIndex)
 reorderNode(root, parentId, fromIndex, toIndex)
 ```
 
-`moveNode()` 必须保证：
+`moveNode()` 必须保证：单次不可变更新、node id 不变化、原 subtree 完整保留、同父级向后移动时正确处理删除后 index 偏移。
 
-- 单次不可变更新。
-- node id 不变化。
-- 原节点 subtree 完整保留。
-- 同父级向后移动时正确处理删除后 index 偏移。
-- 非法移动返回原 document 或明确的 command result，不产生半完成状态。
-
-推荐返回：
-
-```ts
-interface TreeCommandResult {
-  document: WebsiteNode;
-  changed: boolean;
-  reason?: string;
-}
-```
-
-V1 可以先保持现有函数返回 document，同时另外提供 validate 函数；如果实现中发现错误反馈需要统一，再升级为 Result 类型。
+V1 保持纯函数风格：合法性由 Editor Command 先校验，`shared/tree` 只负责确定性的树变换，不在底层树工具里混入 Component Registry 业务依赖。
 
 ## 8. Editor Command 层
 
@@ -285,37 +220,13 @@ Canvas 和 Layer Tree 禁止直接调用 `shared/tree.moveNode()`，统一经过
 ┌───────────────┐
 │ 组件 | 图层   │
 ├───────────────┤
-│               │
-│  当前 Tab     │
-│               │
+│  当前内容     │
 └───────────────┘
 ```
 
-### 9.1 组件 Tab
+组件 Tab 按“布局 / 内容”分组。每个组件既支持点击插入，也支持拖拽进入 Canvas。
 
-组件按类别显示：
-
-```text
-布局
-  Section
-  Container
-  Grid
-
-内容
-  Heading
-  Text
-  Image
-  Button
-```
-
-每项：
-
-- 点击：按插入模型插入。
-- 拖拽：进入 Canvas Drop System。
-
-### 9.2 图层 Tab
-
-显示完整树：
+图层 Tab 显示完整 Schema 树：
 
 ```text
 Page
@@ -326,59 +237,15 @@ Page
    └─ Button
 ```
 
-行为：
-
-- 点击节点：选中。
-- 选中变化：Canvas 同步高亮。
-- 展开 / 折叠：仅属于 UI 状态，不写入 Schema。
-- 拖拽节点：排序或跨父级移动。
-- Page 根节点显示但不可拖动 / 删除。
+图层行为：点击节点选中；Canvas 同步高亮；展开 / 折叠只属于 UI 状态；节点可排序或跨父级移动；Page 根节点显示但不可拖动、不可删除。
 
 ## 10. Canvas Drop Zone 设计
 
-Canvas 不做无限自由定位，而是 DOM-flow Builder。
+Canvas 采用 DOM-flow Builder，不做无限自由定位。每个可容器节点提供：before child 0、between child N/N+1、after last child，以及空容器的 inside target。
 
-每个可容器节点提供以下 drop zone：
+拖动时：合法目标显示蓝色 Indicator；非法目标显示禁止状态且不执行 drop；空容器整个空状态区域作为 inside target。
 
-```text
-before child 0
-inside empty container
-between child N / N+1
-after last child
-```
-
-例如：
-
-```text
-Section
-  ───────────────  ← index 0
-  Heading
-  ───────────────  ← index 1
-  Text
-  ───────────────  ← index 2
-```
-
-拖动时：
-
-- 合法目标：蓝色 Indicator。
-- 非法目标：红色 / 禁止鼠标状态，不执行 drop。
-- 空容器：整个空状态区域就是 inside target。
-
-### 10.1 Drop Indicator 不进入网页输出
-
-不能修改节点的真实 border / margin 来显示 drop line。
-
-使用 Editor Overlay / wrapper：
-
-```text
-Node DOM
-+ Editor Chrome
-  ├─ selection outline
-  ├─ hover outline
-  └─ drop indicator
-```
-
-预览和 Published Renderer 不加载 Editor Chrome。
+Drop Indicator 不得修改节点真实 border / margin。使用 Editor Chrome / Overlay 来显示 selection、hover 和 drop indicator；Preview 与 Published Renderer 不加载这些编辑器辅助层。
 
 ## 11. Canvas 与 Layer Tree 联动
 
@@ -396,31 +263,15 @@ interface EditorState {
 }
 ```
 
-联动规则：
+Canvas 点击后更新 `selectedNodeId`，图层树同步选中并展开 ancestor；图层树点击后更新同一个 `selectedNodeId`，Canvas 同步高亮。
 
-```text
-Canvas click
-  → selectedNodeId
-  → Layer Tree 选中并自动展开 ancestor
-
-Layer Tree click
-  → selectedNodeId
-  → Canvas 高亮
-  → 尽量 scrollIntoView
-```
-
-V1 先实现 selected 联动；自动 scrollIntoView 如果需要复杂 DOM ref 管理，可作为本阶段尾项，但树自动展开必须实现。
+V1 必须完成 selected 联动与树自动展开。Canvas `scrollIntoView` 作为增强项，不作为阻塞本阶段完成的核心 Gate。
 
 ## 12. 拖拽技术选择
 
 本阶段优先使用浏览器原生 HTML5 Drag and Drop + React 事件封装，而不是立即增加 dnd-kit / react-dnd 依赖。
 
-原因：
-
-- 当前 V1 组件数量少。
-- 拖拽模型仍在快速调整。
-- 原生 DnD 足够验证树协议和交互模型。
-- 避免插件新增运行时依赖导致 NocoBase 构建和版本冲突。
+原因是当前 V1 组件数量少、拖拽模型仍在快速调整，同时要尽量避免插件新增运行时依赖导致 NocoBase 构建和版本冲突。
 
 抽象出：
 
@@ -432,23 +283,11 @@ editor/dnd/
 └─ index.ts
 ```
 
-未来如果原生 DnD 在触摸端、复杂嵌套 hit test 上遇到瓶颈，只替换 DnD adapter，不改 Tree Command 与 Registry Contract。
+未来如果原生 DnD 在触摸端或复杂嵌套 hit test 上遇到瓶颈，只替换 DnD adapter，不改 Tree Command 与 Registry Contract。
 
 ## 13. 零代码排版交互范围
 
-完成本阶段后，运营用户应该能完成：
-
-```text
-1. 添加 Section
-2. 拖入 Container
-3. 拖入 Heading / Text / Button
-4. 把 Text 拖到 Heading 前后
-5. 新建第二个 Section
-6. 把 Button 从 Section 1 拖到 Section 2
-7. 在图层树中再次重新排序
-8. 点击任意图层，在右侧修改 props / style
-9. Desktop / Mobile 切换继续编辑响应式样式
-```
+完成本阶段后，运营用户应能：添加 Section；拖入 Container；拖入 Heading / Text / Button；调整同级顺序；创建第二个 Section；把内容从一个容器拖到另一个容器；在图层树中重新排序；点击任意图层在右侧修改 props/style；切换 Desktop/Mobile 编辑响应式样式。
 
 用户不需要理解 DOM、JSON、React、FlowModel。
 
@@ -456,51 +295,21 @@ editor/dnd/
 
 ### 14.1 纯树逻辑测试
 
-必须覆盖：
-
-- `insertNodeAt` 开头 / 中间 / 末尾。
-- 同父级向前排序。
-- 同父级向后排序。
-- 跨父级移动。
-- subtree 保留。
-- 拖入自身拒绝。
-- 拖入 descendant 拒绝。
-- Page 不允许移动。
+覆盖：`insertNodeAt` 开头/中间/末尾、同父级向前排序、同父级向后排序、跨父级移动、subtree 保留。
 
 ### 14.2 Registry 层级测试
 
-覆盖：
-
-- Page 接受 Section。
-- Page 拒绝 Text / Button。
-- Section 接受 Container / Grid / 内容。
-- Heading / Text / Image / Button 拒绝 children。
+覆盖：Page 接受 Section；Page 拒绝 Text/Button；Section 接受 Container/Grid/内容；Container 接受 Grid/内容并拒绝 Section；Heading/Text/Image/Button 拒绝 children。
 
 ### 14.3 Editor Command 测试
 
-覆盖：
-
-- 点击插入选中合法容器。
-- 当前为内容组件时向上寻找合法 parent。
-- 找不到目标时不修改文档。
-- 非法 move 不修改文档。
+覆盖：点击插入选中合法容器；当前为内容组件时向上寻找合法 parent；找不到目标时不修改文档；非法 move 不修改文档；自身/descendant/Page move 均被拒绝。
 
 ### 14.4 UI 人工验收
 
-本地 NocoBase 中验证：
-
-- 组件 Tab 可点击 / 拖动。
-- Layer Tree 能正确反映 Schema。
-- Canvas / Layers 双向选中。
-- 同级排序实时反映。
-- 跨容器移动实时反映。
-- 非法 drop 被阻止。
-- 空节点始终可命中。
-- Preview 不出现编辑器占位文字 / drop line / outline。
+本地 NocoBase 中验证：组件 Tab 可点击/拖动；Layer Tree 正确反映 Schema；Canvas/Layers 双向选中；同级排序与跨容器移动实时反映；非法 drop 被阻止；空节点始终可命中；Preview 不出现编辑器占位文字、drop line 和 outline。
 
 ## 15. 实施顺序
-
-按 Feature Gate 推进：
 
 ```text
 Feature 1：Tree move / reorder 纯逻辑
@@ -524,15 +333,6 @@ Feature 8：本地交互验收
 
 ## 16. 完成标准
 
-本阶段完成必须同时满足：
+本阶段完成必须同时满足：Page/Section/Container/Grid/Content 层级规则稳定；点击插入不会把内容错误插到 Page 根节点；Canvas 支持已有节点同级和跨容器移动；组件库支持拖入 Canvas；图层树支持选中与拖拽移动；Canvas/Layers 双向同步；非法层级和循环移动被阻止；Preview/Published Renderer 不含编辑器辅助 DOM 样式；纯逻辑自动测试全部通过。
 
-- Page / Section / Container / Grid / Content 层级规则稳定。
-- 点击插入不会把内容错误插到 Page 根节点。
-- Canvas 支持已有节点同级和跨容器移动。
-- 组件库支持拖入 Canvas。
-- 图层树支持选中与拖拽移动。
-- Canvas / Layers 双向同步。
-- 非法层级和循环移动被阻止。
-- Preview / Published Renderer 不含编辑器辅助 DOM 样式。
-- 纯逻辑自动测试全部通过。
-- NocoBase 本地 build + 人工交互验收通过后，才进入 Draft / Publish Release Gate。
+NocoBase 本地 build + 人工交互验收通过后，才进入 Draft / Publish Release Gate。
