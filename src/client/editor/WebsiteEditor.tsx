@@ -6,8 +6,8 @@ import { findNode } from '../../shared/tree';
 import { componentRegistry } from '../registry';
 import { WebsiteRenderer } from '../renderer';
 import { Canvas } from './canvas/Canvas';
-import { insertChild, removeEditorNode, updateNodeProps, updateNodeStyle } from './commands';
-import { ComponentPanel } from './panels/ComponentPanel';
+import { insertComponent, removeEditorNode, updateNodeProps, updateNodeStyle } from './commands';
+import { EditorSidebar } from './panels/EditorSidebar';
 import { PropertyPanel } from './panels/PropertyPanel';
 import { createEditorState, editorReducer } from './state';
 import { EditorToolbar } from './toolbar/EditorToolbar';
@@ -29,15 +29,21 @@ function nextNodeId(type: string) {
 export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onPublish }: WebsiteEditorProps) {
   const [state, dispatch] = useReducer(editorReducer, initialDocument, createEditorState);
   const [previewOpen, setPreviewOpen] = React.useState(false);
-  const selectedNode = useMemo(() => state.selectedNodeId ? findNode(state.document, state.selectedNodeId) : undefined, [state.document, state.selectedNodeId]);
+  const selectedNode = useMemo(
+    () => (state.selectedNodeId ? findNode(state.document, state.selectedNodeId) : undefined),
+    [state.document, state.selectedNodeId],
+  );
 
   const replaceDocument = (document: WebsiteNode) => dispatch({ type: 'replace-document', document, markDirty: true });
 
   const handleInsert = (type: string) => {
-    const definition = componentRegistry.get(selectedNode?.type || '');
-    const parentId = selectedNode && definition?.acceptsChildren ? selectedNode.id : state.document.id;
     const node = createNode(type, nextNodeId(type));
-    replaceDocument(insertChild(state.document, parentId, node));
+    const result = insertComponent(state.document, componentRegistry, state.selectedNodeId, node);
+    if (!result.inserted) {
+      message.warning(result.reason || '当前层级无法插入该组件');
+      return;
+    }
+    replaceDocument(result.document);
     dispatch({ type: 'select', nodeId: node.id });
   };
 
@@ -72,14 +78,48 @@ export function WebsiteEditor({ initialDocument, saving, publishing, onSave, onP
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 140px)', minHeight: 680 }}>
-      <EditorToolbar device={state.device} dirty={state.dirty} saving={saving} publishing={publishing} onDeviceChange={(device) => dispatch({ type: 'set-device', device })} onSave={handleSave} onPreview={() => setPreviewOpen(true)} onPublish={handlePublish} />
+      <EditorToolbar
+        device={state.device}
+        dirty={state.dirty}
+        saving={saving}
+        publishing={publishing}
+        onDeviceChange={(device) => dispatch({ type: 'set-device', device })}
+        onSave={handleSave}
+        onPreview={() => setPreviewOpen(true)}
+        onPublish={handlePublish}
+      />
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <ComponentPanel onInsert={handleInsert} />
-        <Canvas document={state.document} device={state.device} selectedNodeId={state.selectedNodeId} onSelect={(nodeId) => dispatch({ type: 'select', nodeId })} />
-        <PropertyPanel node={selectedNode} device={state.device} onPropsChange={handlePropsChange} onStyleChange={handleStyleChange} onDelete={handleDelete} />
+        <EditorSidebar
+          document={state.document}
+          selectedNodeId={state.selectedNodeId}
+          onSelect={(nodeId) => dispatch({ type: 'select', nodeId })}
+          onInsert={handleInsert}
+        />
+        <Canvas
+          document={state.document}
+          device={state.device}
+          selectedNodeId={state.selectedNodeId}
+          onSelect={(nodeId) => dispatch({ type: 'select', nodeId })}
+        />
+        <PropertyPanel
+          node={selectedNode}
+          device={state.device}
+          onPropsChange={handlePropsChange}
+          onStyleChange={handleStyleChange}
+          onDelete={handleDelete}
+        />
       </div>
-      <Modal open={previewOpen} title="页面预览" width="90vw" footer={null} onCancel={() => setPreviewOpen(false)} destroyOnClose>
-        <div style={{ minHeight: 600, overflow: 'auto' }}><WebsiteRenderer schema={state.document} device={state.device} /></div>
+      <Modal
+        open={previewOpen}
+        title="页面预览"
+        width="90vw"
+        footer={null}
+        onCancel={() => setPreviewOpen(false)}
+        destroyOnClose
+      >
+        <div style={{ minHeight: 600, overflow: 'auto' }}>
+          <WebsiteRenderer schema={state.document} device={state.device} />
+        </div>
       </Modal>
     </div>
   );
