@@ -4,6 +4,15 @@ import type { ComponentRegistry } from '../../registry';
 import { validateMove } from '../commands';
 import type { DragSource, DropTarget, DropValidationResult, NodeDropGeometry } from './types';
 
+export interface LayerTreeDropGeometry {
+  anchorNodeId: string;
+  parentId?: string;
+  index: number;
+  childCount: number;
+  dropToGap: boolean;
+  relativePosition: number;
+}
+
 export function resolveDropTarget(geometry: NodeDropGeometry): DropTarget | undefined {
   const ratio = Math.max(0, Math.min(1, geometry.pointerRatio));
 
@@ -40,6 +49,26 @@ export function resolveDropTarget(geometry: NodeDropGeometry): DropTarget | unde
     index: geometry.index + 1,
     position: 'after',
     anchorNodeId: geometry.nodeId,
+  };
+}
+
+export function resolveLayerTreeDropTarget(geometry: LayerTreeDropGeometry): DropTarget | undefined {
+  if (!geometry.dropToGap) {
+    return {
+      parentId: geometry.anchorNodeId,
+      index: geometry.childCount,
+      position: 'inside',
+      anchorNodeId: geometry.anchorNodeId,
+    };
+  }
+
+  if (!geometry.parentId) return undefined;
+  const after = geometry.relativePosition > 0;
+  return {
+    parentId: geometry.parentId,
+    index: geometry.index + (after ? 1 : 0),
+    position: after ? 'after' : 'before',
+    anchorNodeId: geometry.anchorNodeId,
   };
 }
 
