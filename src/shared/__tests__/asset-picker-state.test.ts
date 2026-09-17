@@ -81,3 +81,17 @@ test('reset clears stale selection when the picker opens for another image', asy
   assert.equal(reset.alt, 'Two');
   assert.equal(reset.mode, 'library');
 });
+
+test('switching picker modes clears a stale asset selection', async () => {
+  const { createWebsiteAssetPickerState, reduceWebsiteAssetPickerState, buildAssetApplyValue } = await loadPickerState();
+  let state = createWebsiteAssetPickerState('', 'Alt');
+  state = reduceWebsiteAssetPickerState(state, {
+    type: 'select-asset',
+    mode: 'library',
+    asset: { id: 1, mimetype: 'image/png', url: '/library.png' },
+  });
+  state = reduceWebsiteAssetPickerState(state, { type: 'set-mode', mode: 'upload' });
+
+  assert.equal(state.selected, undefined);
+  assert.equal(buildAssetApplyValue(state), null);
+});
